@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Models\UserAction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MilestoneController extends Controller
 {
@@ -131,42 +132,102 @@ class MilestoneController extends Controller
         $wallet = Wallet::checkWallet(['user' => $user, 'type' => 'USER'])->find($details->wallet_id);
         $milestone = Milestone::where('user_id', $user->id)->where('id', $details->milestone_id)->first();
 
-        $wallet->balance -= $milestone->amount;
-        $wallet->save();
-
-        $paidMilestoneCount = Milestone::funded()->where('escrow_id', $milestone->escrow_id)->count();
-
-        $transaction               = new Transaction();
-        $transaction->user_id       = auth()->id();
-        $transaction->user_type     = 'USER';
-        $transaction->wallet_id     = $wallet->id;
-        $transaction->currency_id   = $wallet->currency_id;
-
-        if ($paidMilestoneCount == 0) {
-            $transaction->before_charge = $milestone->amount - $milestone->escrow->buyer_charge;
-            $transaction->charge = $milestone->escrow->buyer_charge;
-        } else {
-            $transaction->before_charge = $milestone->amount;
-            $transaction->charge = 0;
+        if (!$wallet || !$milestone) {
+            $notify[] = ['error', 'Sorry! Unable to process'];
+            return to_route('user.transfer')->withNotify($notify)->withInput();
         }
 
-        $transaction->amount       = $milestone->amount;
-        $transaction->post_balance = $wallet->balance;
-        $transaction->trx_type     = '-';
-        $transaction->charge_type = '+';
-        $transaction->remark       = "milestone_paid";
-        $transaction->details      = 'Milestone amount paid';
-        $transaction->trx          = getTrx();
-        $transaction->save();
+        // ATOMICITY + IDEMPOTENCY (deferred money-flow wave; mirrors the Phase 5
+        // money-out fix): the milestone debit ran with no lock, no balance
+        // re-check, and the one-shot UserAction was never consumed, so a refresh/
+        // replay or concurrent pay could debit twice and double-fund the escrow.
+        // Lock the milestone (payment_status==unfunded) inside the tx, lock the
+        // wallet + re-check balance, lock the escrow row before bumping
+        // paid_amount, then debit, write the ledger row, fund the milestone, and
+        // consume the one-shot UserAction. Charge/amount logic is unchanged.
+        $authId        = auth()->id();
+        $actionId      = session('action_id');
+        $walletId      = $wallet->id;
+        $milestoneId   = $milestone->id;
+        $escrowId      = $milestone->escrow_id;
+        $alreadyFunded = false;
+        $insufficient  = false;
+        $escrowRef     = null;
 
-        $milestone->payment_status = Status::MILESTONE_FUNDED;
-        $milestone->save();
+        DB::transaction(function () use (
+            $authId, $actionId, $walletId, $milestoneId, $escrowId,
+            &$alreadyFunded, &$insufficient, &$escrowRef
+        ) {
+            $action = UserAction::where('id', $actionId)->lockForUpdate()->first();
+            if (!$action) {
+                $alreadyFunded = true;
+                return; // replay -> idempotent no-op
+            }
 
-        $escrow               = $milestone->escrow;
-        $escrow->paid_amount += $milestone->amount;
-        $escrow->save();
+            $lockedMilestone = Milestone::where('id', $milestoneId)->where('payment_status', Status::MILESTONE_UNFUNDED)->lockForUpdate()->first();
+            if (!$lockedMilestone) {
+                $alreadyFunded = true;
+                return; // already funded by a concurrent request
+            }
+
+            $lockedWallet = Wallet::where('id', $walletId)->lockForUpdate()->first();
+            if (!$lockedWallet || $lockedWallet->balance < $lockedMilestone->amount) {
+                $insufficient = true;
+                return;
+            }
+
+            $lockedEscrow = Escrow::where('id', $escrowId)->lockForUpdate()->first();
+
+            $lockedWallet->balance -= $lockedMilestone->amount;
+            $lockedWallet->save();
+
+            $paidMilestoneCount = Milestone::funded()->where('escrow_id', $escrowId)->count();
+
+            $transaction               = new Transaction();
+            $transaction->user_id       = $authId;
+            $transaction->user_type     = 'USER';
+            $transaction->wallet_id     = $lockedWallet->id;
+            $transaction->currency_id   = $lockedWallet->currency_id;
+
+            if ($paidMilestoneCount == 0) {
+                $transaction->before_charge = $lockedMilestone->amount - $lockedEscrow->buyer_charge;
+                $transaction->charge = $lockedEscrow->buyer_charge;
+            } else {
+                $transaction->before_charge = $lockedMilestone->amount;
+                $transaction->charge = 0;
+            }
+
+            $transaction->amount       = $lockedMilestone->amount;
+            $transaction->post_balance = $lockedWallet->balance;
+            $transaction->trx_type     = '-';
+            $transaction->charge_type = '+';
+            $transaction->remark       = "milestone_paid";
+            $transaction->details      = 'Milestone amount paid';
+            $transaction->trx          = getTrx();
+            $transaction->save();
+
+            $lockedMilestone->payment_status = Status::MILESTONE_FUNDED;
+            $lockedMilestone->save();
+
+            $lockedEscrow->paid_amount += $lockedMilestone->amount;
+            $lockedEscrow->save();
+
+            $action->delete(); // one-shot: prevent replay
+
+            $escrowRef = $lockedEscrow;
+        });
+
+        if ($insufficient) {
+            $notify[] = ['error', 'You have no sufficient balance on your wallet'];
+            return back()->withNotify($notify);
+        }
+
+        if (!$escrowRef) {
+            $notify[] = ['error', 'Sorry! Unable to process'];
+            return to_route('user.transfer')->withNotify($notify)->withInput();
+        }
 
         $notify[] = ['success', 'Milestone amount paid successfully'];
-        return to_route('user.escrow.milestone.index', $escrow->id)->withNotify($notify);
+        return to_route('user.escrow.milestone.index', $escrowRef->id)->withNotify($notify);
     }
 }
