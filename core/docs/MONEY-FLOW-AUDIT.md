@@ -1,91 +1,92 @@
-# Money-Flow Audit (Phase 13)
+# Money-Flow Audit
 
-Trace of the wallet-mutating flows for atomicity (transaction wrapping) and
-idempotency (no double credit/debit under replay/concurrency). One minimal,
-well-understood fix was applied (§2). The broader set is documented with a
-prioritized recommendation rather than blind-changed, because applying the
-transaction/lock pattern to every flow safely needs a seeded test DB to verify
-(per the Phase 13 "prefer reports/plans if risky without tests" guidance).
+Trace of the wallet-mutating flows for **atomicity** (transaction wrapping) and
+**idempotency** (no double credit/debit under replay/concurrency). Phase 13
+fixed the first few; the overnight pass (`work/overnight-hardening`) hardened the
+remaining high-traffic user flows. The complex multi-party state machines are
+documented with the exact pattern but deliberately **not** rewritten blind (no
+fixture-based tests yet — per "prefer reports/plans if risky without tests").
 
-The canonical safe pattern already established in this repo (Phase 3/4):
+The canonical safe pattern established in this repo (Phase 3/4):
 
 ```php
 DB::transaction(function () use (...) {
+    // lock the state row (deposit / voucher / UserAction) and re-check under the lock
     $row = Model::where('id', $id)->lockForUpdate()->first();
-    if (!$row || $row->status != EXPECTED) return;   // idempotent no-op
-    // ... mutate status + wallet + ledger ...
+    if (!$row /* or already-consumed/wrong-status */) return;   // idempotent no-op
+    // lock EVERY involved wallet row in a consistent (id-ascending) order
+    // re-check the payer balance under the lock
+    // mutate balances + insert ledger rows + consume the one-shot token
 });
-// side effects (notify/admin notification) only after commit
+// side effects (notify / admin notification) only AFTER commit, reading captured balances
 ```
 
-## 1. Already hardened (verified)
+## 1. Hardened (verified, committed)
 
-- **Inbound deposit credit** — `PaymentController::userDataUpdate()`
-  (`app/Http/Controllers/Gateway/PaymentController.php:145`). Locked transaction,
-  re-checks `status` under the lock, credits via the central `WalletService`,
-  fires notifications only after commit. **Correct.**
+| Flow | Controller / method | Notes |
+| ---- | ------------------- | ----- |
+| Inbound deposit credit | `Gateway/PaymentController::userDataUpdate()` | Phase 3/4: locked tx, status re-check, WalletService credit. |
+| Admin withdrawal reject refund | `Admin/WithdrawalController::reject()` | Phase 13: locked tx + status re-check + wallet lock. |
+| Admin withdrawal approve | `Admin/WithdrawalController::approve()` | No balance move (debit at request time); status-guarded. Unchanged. |
+| User→merchant payment (web) | `User/MakePaymentController::paymentDone()` | Phase 13B: locked tx, both wallets, delete UserAction (one-shot). |
+| User→merchant payment (API) | `Api/User/MakePaymentController::paymentDone()` | Phase 5: locked tx, both wallets, used=1 inside tx. |
+| Money exchange (web + API) | `User/`+`Api/User/MoneyExchangeController::exchangeConfirm()` | Phase 5: locked tx, both wallets, source re-check; web null-deref fix. |
+| Money out (web + API) | `User/`+`Api/User/MoneyOutController::moneyOutDone()` | Phase 5: locked tx, user+agent wallets, commission, consume action. |
+| Money in (web + API) | `Agent/`+`Api/Agent/MoneyInController::moneyInDone()` | Phase 5: locked tx, agent+user wallets, commission, consume action; web user-wallet null guard. |
+| Voucher create (web + API) | `User/`+`Api/User/VoucherController::userVoucherCreateDone()` | Phase 5: locked tx, wallet lock, consume action (no double-mint). |
+| Voucher redeem (web + API) | `User/`+`Api/User/VoucherController::userVoucherRedeemConfirm()` | Phase 5: lock voucher + mark-used-under-lock (kills double-redeem race); web creates wallet if missing. |
+| Admin add/subtract balance | `Admin/ManageGuardController::addSubBalance()` | Phase 5: locked tx, wallet lock, sufficiency re-check. |
 
-## 2. Fixed in this pass
+All preserve every amount/charge/commission/remark/notification/redirect; only
+transaction + lock + single-use scaffolding was added, with notifications moved
+after commit. All `php -l` clean; the route/limiter/boot test suite stays green
+(23 passed, 2 skipped). **Money math paths are not yet exercised by tests** (no
+model factories; schema is dump-based) — see §4.
 
-- **Admin withdrawal rejection refund** —
-  `app/Http/Controllers/Admin/WithdrawalController.php` `reject()`.
-  The status flip, wallet refund (`balance += amount`), and ledger insert were
-  not wrapped in a transaction and the status read was unlocked. Cross-request
-  idempotency existed (`where status = PENDING` + `firstOrFail`), but two
-  **concurrent** rejects could both pass the unlocked read and double-refund.
-  Fix: wrap in `DB::transaction`, re-fetch the withdrawal with `lockForUpdate()`
-  and re-check `PENDING` under the lock, lock the wallet row, and move the
-  notification after commit. Refund amount and ledger fields unchanged.
-  `php -l` clean.
-- **Admin withdrawal approval** — `approve()` mutates **no** balance (the debit
-  happens at withdrawal-request time); it only flips status + notifies, and is
-  idempotent via the `where status = PENDING` + `firstOrFail` guard. A race would
-  at worst duplicate a notification. Left unchanged (low risk, no money effect).
-- **User → merchant payment** — `User/MakePaymentController::paymentDone()`.
-  The debit (user) + credit (merchant) + up-to-three ledger rows ran with **no
-  transaction** (a mid-flow failure could debit the payer without paying the
-  merchant) and on **unlocked** wallet reads, and the one-shot `UserAction`
-  intent was **never consumed** — a refreshed/replayed done-route request
-  re-charged the payer (worse when no OTP is configured, since `paymentConfirm`
-  redirects straight to the done route). Fix: wrap in `DB::transaction`, lock
-  both wallet rows in id-ascending order, re-check the payer balance under the
-  lock, and `delete()` the `UserAction` inside the transaction so the flow runs
-  exactly once. Every amount/charge/ledger field is unchanged; notifications
-  moved after commit. `php -l` clean.
-  Residual: enforcing OTP `used_at` at the done route is a separate pre-existing
-  concern, now moot for replay because the intent row is deleted on success.
-  **Untested** (no test DB) — validate before relying on it in production.
+## 2. Deferred — documented, NOT rewritten (apply the §0 pattern with tests)
 
-## 3. Flows to review next (NOT changed — need a test DB to verify safely)
+These were intentionally left for a test-backed pass because they are
+multi-step / multi-state and a blind rewrite risks a behavior regression:
 
-These controllers mutate `wallet->balance` directly and should be confirmed to
-use the §0 transaction/lock pattern. They are user-facing balance moves where a
-concurrency race or missing transaction could corrupt balances. Prioritized:
+| Flow | Controller / method | Why deferred / what to do |
+| ---- | ------------------- | ------------------------- |
+| Escrow | `User/EscrowController` (`dispatchEscrow`, `accept`, `cancel`, `dispute`), `Admin/EscrowController` | Multi-party escrow state machine with dispute/release branches; each balance move must be wrapped + locked and the escrow status transition re-checked under the lock. Highest value, highest regression risk without tests. |
+| Milestone | `User/MilestoneController::payMilestoneDone()` | Milestone pay/release tied to escrow state; same pattern, lock the milestone + wallet rows. |
+| Invoice payment | `User/InvoiceController::invoicePaymentConfirmDone()` | Two-party settlement; wrap debit+credit+ledger, lock both wallets, guard against paying an already-paid invoice (status under lock). |
+| API gateway payment | `GetPaymentController::verifyPaymentConfirm()` | Payer+merchant move; set the apiPayment status inside the locked tx before/with crediting (currently set after). |
+| Transfer money | `User/UserOperationController::transferMoney*` / `Api/.../UserOperationController` | User→user transfer; lock both wallets, consume the action. |
+| Withdrawal submit (debit) | `Traits/WithdrawProcess::withdrawSubmitDone()`, `Api/Withdraw` | Debits at submit time; wrap the debit + withdrawal-record insert and consume the action under a lock. |
 
-| Priority | Flow / controller | Concern to confirm |
-| -------- | ----------------- | ------------------ |
-| Done | `User/MakePaymentController` | FIXED in §2 — atomic, locked, single-use. |
-| High | `Api/User/MakePaymentController` | API twin of the fixed flow; apply the same transaction/lock/consume pattern |
-| High | `User/MoneyOutController`, `Api/User/MoneyOutController`, `Agent/MoneyInController`, `Api/Agent/MoneyInController` | cash in/out balance moves; lock + idempotency |
-| High | `User/EscrowController`, `Admin/EscrowController`, `User/MilestoneController` | escrow hold/release across parties; partial-failure atomicity |
-| Medium | `User/MoneyExchangeController`, `Api/User/MoneyExchangeController` | two-wallet exchange must be atomic |
-| Medium | `User/VoucherController`, `Api/User/VoucherController` | voucher redeem must be single-use (idempotent) under concurrency |
-| Medium | `User/InvoiceController`, `GetPaymentController` | invoice settlement balance move |
-| Low | `Admin/ManageGuardController` | admin balance adjustment; lock the wallet row |
+For each: apply the §0 pattern — transaction + `lockForUpdate` on every wallet
+and the state row, re-check state/balance under the lock, consume the one-shot
+token inside the tx, side effects after commit. Lock multiple wallets in
+id-ascending order to avoid deadlocks. Validate against the disposable
+`marketcapx_test` DB (see `tests/README.md`) before shipping.
 
-Recommended approach for each: apply the §0 pattern (transaction + `lockForUpdate`
-on the wallet row(s) and the state row, re-check state under the lock, side
-effects after commit). For multi-party moves (payments, escrow, exchange) lock
-**all** involved wallet rows in a consistent order to avoid deadlocks, and assert
-the debit side has sufficient balance inside the locked transaction. Validate
-each against a seeded disposable test DB (see `tests/README.md`) before shipping;
-do not change them blind.
+## 3. Notes / observations (not changed)
 
-## 4. Constraints honored
+- **Money exchange `to_wallet` is not scoped to the user** (`Wallet::find($to_wallet_id)`
+  rather than `checkWallet(...)`). Not a profitable attack (you spend your own
+  funds), but a user could credit another account's wallet. Left as-is to avoid
+  changing authorization behavior blind; flag for product review.
+- Several web "done" routes are GET and rely on the now-consumed one-shot
+  `UserAction` for replay safety; enforcing OTP `used_at` at the done route is a
+  separate pre-existing hardening item.
 
-- No DB migrations/seeders run; `paytabz_DB` untouched.
-- No real gateway/payment endpoints called.
-- Only one flow changed, following an existing in-repo pattern; the rest is a
-  report. No broad rewrites.
+## 4. Test coverage gap
 
-See `docs/GATEWAY-IPN-AUDIT.md` and `docs/HARDENING.md` for related findings.
+The app has **no model factories** and the schema lives in the SQL dump, so
+exercising the actual debit/credit math requires hand-built fixtures against
+`marketcapx_test`. The current suite covers boot, route registration, middleware
+wiring, and limiter definitions — not the money math. Recommended next step:
+add factories (or dump-seeded fixtures) for `User/Agent/Merchant`, `Wallet`,
+`Deposit`, `Voucher`, `UserAction`, then write idempotency/atomicity tests
+(double-submit → single effect; mid-flow failure → full rollback) for each
+hardened flow and for the §2 flows as they are implemented.
+
+## 5. Constraints honored
+No migrations/seeders on `paytabz_DB`; no real gateway/payment calls; no broad
+rewrites (only transaction/lock/consume scaffolding added, behavior preserved).
+
+See `docs/GATEWAY-IPN-AUDIT.md`, `docs/DEPENDENCY-LOCK-RECOVERY.md`, and
+`docs/HARDENING.md` for related findings.

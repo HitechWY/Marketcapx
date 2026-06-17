@@ -51,6 +51,17 @@ direction regardless.
 
 Both files pass `php -l`. No behavior outside the IPN authenticity gate changed.
 
+### TwoCheckout — re-reviewed (Phase 6), no change needed
+A later scan flagged `TwoCheckout/ProcessController::ipn()` for a "missing
+idempotency guard." Re-reading the source: it fetches the deposit with
+`Deposit::where('status', 0)...` (status 0 = `PAYMENT_INITIATE`), so the query
+itself is the idempotency guard — a replayed callback after the status changes
+finds no row and cannot double-credit. Authenticity is an md5 hash over the
+configured `secret_key` (not hardcoded), and `userDataUpdate()` re-checks under a
+lock (Phase 3). Adding an explicit `&& status == PAYMENT_INITIATE` would be
+redundant. **No code change** — the flag was a false positive, like the
+CoinbaseCommerce/NowPaymentsHosted flags below.
+
 ## 2. The "good" verification pattern (reference)
 
 Strong handlers in this codebase follow: **verify authenticity → check
