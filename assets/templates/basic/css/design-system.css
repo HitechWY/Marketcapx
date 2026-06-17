@@ -1,0 +1,105 @@
+/* =====================================================================
+   MarketCap X — Design System tokens (Phase 1: frontend/design-system)
+   ---------------------------------------------------------------------
+   ADDITIVE ONLY. This file declares CSS custom properties (design tokens)
+   on :root. It contains NO selectors that style existing elements, so
+   loading it produces ZERO visual change. Subsequent frontend phases
+   (public site, dashboard UX) consume these tokens instead of hard-coded
+   values. See core/docs/DESIGN-SYSTEM.md.
+
+   The live primary/secondary are re-declared by color.php (loaded after
+   this file) from the admin-configured gs('base_color'), so --ds-color-
+   primary tracks the running theme; the values below are the documented
+   fallbacks matching color.php's own defaults (#336699).
+   ===================================================================== */
+
+:root {
+    /* ---- Brand / primary (fallbacks; color.php overrides at runtime) ---- */
+    --ds-color-primary: #336699;
+    --ds-color-primary-rgb: 51, 102, 153;
+    --ds-color-secondary: #336699;
+
+    /* ---- Neutral scale (greys) ---- */
+    --ds-color-white: #ffffff;
+    --ds-color-gray-50: #f8f9fa;
+    --ds-color-gray-100: #f1f3f5;
+    --ds-color-gray-200: #e9ecef;
+    --ds-color-gray-300: #dee2e6;
+    --ds-color-gray-400: #ced4da;
+    --ds-color-gray-500: #adb5bd;
+    --ds-color-gray-600: #6c757d;
+    --ds-color-gray-700: #495057;
+    --ds-color-gray-800: #343a40;
+    --ds-color-gray-900: #212529;
+    --ds-color-black: #000000;
+
+    /* ---- Semantic (aligned to the Bootstrap palette already in use) ---- */
+    --ds-color-success: #28a745;
+    --ds-color-danger: #dc3545;
+    --ds-color-warning: #ffc107;
+    --ds-color-info: #17a2b8;
+
+    /* ---- Surfaces / text ---- */
+    --ds-color-body-bg: #f4f6fa;
+    --ds-color-surface: var(--ds-color-white);
+    --ds-color-text: var(--ds-color-gray-900);
+    --ds-color-text-muted: var(--ds-color-gray-600);
+    --ds-color-border: var(--ds-color-gray-300);
+
+    /* ---- Spacing scale (4px base) ---- */
+    --ds-space-0: 0;
+    --ds-space-1: 0.25rem;  /* 4px  */
+    --ds-space-2: 0.5rem;   /* 8px  */
+    --ds-space-3: 0.75rem;  /* 12px */
+    --ds-space-4: 1rem;     /* 16px */
+    --ds-space-5: 1.5rem;   /* 24px */
+    --ds-space-6: 2rem;     /* 32px */
+    --ds-space-7: 3rem;     /* 48px */
+    --ds-space-8: 4rem;     /* 64px */
+
+    /* ---- Typography ---- */
+    --ds-font-family-base: inherit; /* keep the theme's configured webfont */
+    --ds-font-size-xs: 0.75rem;   /* 12px */
+    --ds-font-size-sm: 0.875rem;  /* 14px */
+    --ds-font-size-base: 1rem;    /* 16px */
+    --ds-font-size-lg: 1.125rem;  /* 18px */
+    --ds-font-size-xl: 1.5rem;    /* 24px */
+    --ds-font-size-2xl: 2rem;     /* 32px */
+    --ds-font-weight-normal: 400;
+    --ds-font-weight-medium: 500;
+    --ds-font-weight-semibold: 600;
+    --ds-font-weight-bold: 700;
+    --ds-line-height-tight: 1.2;
+    --ds-line-height-base: 1.5;
+    --ds-line-height-loose: 1.75;
+
+    /* ---- Radii ---- */
+    --ds-radius-sm: 4px;
+    --ds-radius-md: 8px;
+    --ds-radius-lg: 16px;
+    --ds-radius-pill: 999px;
+
+    /* ---- Shadows ---- */
+    --ds-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --ds-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --ds-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+
+    /* ---- Motion ---- */
+    --ds-transition-fast: 150ms ease;
+    --ds-transition-base: 250ms ease;
+
+    /* ---- Z-index scale ---- */
+    --ds-z-dropdown: 1000;
+    --ds-z-sticky: 1020;
+    --ds-z-fixed: 1030;
+    --ds-z-modal-backdrop: 1040;
+    --ds-z-modal: 1050;
+    --ds-z-toast: 1080;
+
+    /* ---- Layout ---- */
+    --ds-container-max: 1200px;
+}
+
+/* Breakpoints (for reference — CSS custom properties cannot be used inside
+   @media queries; consume these values directly in media queries):
+   xs <576px · sm >=576px · md >=768px · lg >=992px · xl >=1200px · xxl >=1400px */
