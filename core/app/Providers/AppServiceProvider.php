@@ -43,6 +43,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($request->ip());
         });
 
+        // SECURITY (Phase F): throttle OTP and password-reset endpoints (email/SMS
+        // sending + code verification) to curb code brute force and message bombing.
+        RateLimiter::for('otp', function (Request $request) {
+            return Limit::perMinute(6)->by($request->ip());
+        });
+        RateLimiter::for('password-reset', function (Request $request) {
+            return Limit::perMinute(6)->by($request->ip());
+        });
+
         if (!cache()->get('SystemInstalled')) {
             $envFilePath = base_path('.env');
             if (!file_exists($envFilePath)) {

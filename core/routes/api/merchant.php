@@ -8,7 +8,7 @@ Route::name('api.merchant.')->group(function () {
         Route::post('login', 'LoginController@login')->middleware('throttle:login');
         Route::post('register', 'RegisterController@register');
 
-        Route::controller('ForgotPasswordController')->group(function () {
+        Route::controller('ForgotPasswordController')->middleware('throttle:password-reset')->group(function () {
             Route::post('password/email', 'sendResetCodeEmail')->name('password.email');
             Route::post('password/verify-code', 'verifyCode')->name('password.verify.code');
             Route::post('password/reset', 'reset')->name('password.update');
@@ -32,7 +32,7 @@ Route::name('api.merchant.')->group(function () {
             Route::middleware('registration.complete')->group(function () {
                 Route::get('dashboard', 'Merchant\MerchantController@dashboard')->name('dashboard');
 
-                Route::controller('OtpController')->group(function () {
+                Route::controller('OtpController')->middleware('throttle:otp')->group(function () {
                     Route::post('otp-verify', 'otpVerify')->name('verify.otp.submit');
                     Route::post('otp-resend', 'otpResend')->name('verify.otp.resend');
                 });

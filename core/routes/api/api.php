@@ -43,7 +43,7 @@ Route::namespace('Api')->name('api.')->group(function () {
         });
         Route::post('register', 'RegisterController@register');
 
-        Route::controller('ForgotPasswordController')->group(function () {
+        Route::controller('ForgotPasswordController')->middleware('throttle:password-reset')->group(function () {
             Route::post('password/email', 'sendResetCodeEmail');
             Route::post('password/verify-code', 'verifyCode');
             Route::post('password/reset', 'reset');
@@ -186,7 +186,7 @@ Route::namespace('Api')->name('api.')->group(function () {
                     });
                 });
 
-                Route::controller('OtpController')->group(function () {
+                Route::controller('OtpController')->middleware('throttle:otp')->group(function () {
                     Route::post('otp-verify', 'otpVerify')->name('verify.otp.submit');
                     Route::post('otp-resend', 'otpResend')->name('verify.otp.resend');
                 });

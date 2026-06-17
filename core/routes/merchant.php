@@ -23,7 +23,7 @@ Route::name('merchant.')->group(function () {
                 Route::post('check-mail', 'checkUser')->name('checkUser');
             });
 
-            Route::controller('ForgotPasswordController')->group(function () {
+            Route::controller('ForgotPasswordController')->middleware('throttle:password-reset')->group(function () {
                 Route::get('password/reset', 'showLinkRequestForm')->name('password.request');
                 Route::post('password/email', 'sendResetCodeEmail')->name('password.email');
                 Route::get('password/code-verify', 'codeVerify')->name('password.code.verify');

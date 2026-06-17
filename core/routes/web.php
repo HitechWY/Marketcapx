@@ -21,7 +21,7 @@ Route::controller('TicketController')->prefix('ticket')->name('ticket.')->group(
     Route::get('download/{attachment_id}', 'ticketDownload')->name('download');
 });
 
-Route::controller('OtpController')->group(function () {
+Route::controller('OtpController')->middleware('throttle:otp')->group(function () {
     Route::get('otp-verification', 'otpVerification')->name('verify.otp');
     Route::get('otp-resend', 'otpResend')->name('verify.otp.resend');
     Route::post('otp-verify', 'otpVerify')->name('verify.otp.submit');

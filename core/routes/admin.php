@@ -11,7 +11,7 @@ Route::namespace('Auth')->group(function () {
         });
 
         // Admin Password Reset
-        Route::controller('ForgotPasswordController')->prefix('password')->name('password.')->group(function () {
+        Route::controller('ForgotPasswordController')->prefix('password')->name('password.')->middleware('throttle:password-reset')->group(function () {
             Route::get('reset', 'showLinkRequestForm')->name('reset');
             Route::post('reset', 'sendResetCodeEmail');
             Route::get('code-verify', 'codeVerify')->name('code.verify');

@@ -16,7 +16,7 @@ Route::namespace('User\Auth')->name('user.')->middleware('guest')->group(functio
         Route::post('check-user', 'checkUser')->name('checkUser')->withoutMiddleware('guest');
     });
 
-    Route::controller('ForgotPasswordController')->prefix('password')->name('password.')->group(function () {
+    Route::controller('ForgotPasswordController')->prefix('password')->name('password.')->middleware('throttle:password-reset')->group(function () {
         Route::get('reset', 'showLinkRequestForm')->name('request');
         Route::post('email', 'sendResetCodeEmail')->name('email');
         Route::get('code-verify', 'codeVerify')->name('code.verify');
