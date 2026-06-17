@@ -2,26 +2,44 @@
 
 namespace Tests\Feature;
 
+use App\Constants\Status;
+use App\Http\Controllers\Gateway\PaymentController;
+use App\Models\Deposit;
+use App\Models\Transaction;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\Concerns\CreatesMoneyFixtures;
 use Tests\TestCase;
 
 /**
- * Placeholder for Phase 3 (deposit atomicity / idempotency) coverage.
- *
- * These tests require a seeded test database (the app schema lives in the SQL
- * dump, not in migrations) and the Phase 3 refactor of
- * Gateway\PaymentController::userDataUpdate() to be transaction-wrapped and
- * idempotent. They are intentionally skipped until that work + a test DB exist.
- *
- * Intended assertions (do NOT run real gateway calls):
- *  - Calling the deposit credit path twice for the same trx credits the wallet
- *    exactly once (idempotent replay).
- *  - A deposit already in SUCCESS state is a no-op when reprocessed.
- *  - Concurrent processing of one deposit results in a single Transaction row.
+ * Phase 3 coverage: the deposit credit path (PaymentController::userDataUpdate)
+ * is transaction-wrapped and idempotent. Runs against the disposable
+ * marketcapx_test DB; DatabaseTransactions rolls back per test. No real gateway
+ * is contacted.
  */
 class DepositIdempotencyTest extends TestCase
 {
+    use DatabaseTransactions;
+    use CreatesMoneyFixtures;
+
     public function test_deposit_credit_is_idempotent(): void
     {
-        $this->markTestSkipped('Phase 3: requires seeded test DB + transaction/idempotency refactor of userDataUpdate().');
+        $currency = $this->makeCurrency();
+        $user     = $this->makeUser();
+        $wallet   = $this->makeWallet($user, 'USER', $currency, 0);
+        $this->makeGatewayCurrency(1001, $currency->currency_code, 'Test Gateway');
+        $deposit  = $this->makeDeposit($user, $wallet, $currency, 40, 1001, Status::PAYMENT_INITIATE);
+
+        PaymentController::userDataUpdate($deposit);
+
+        $this->assertEqualsWithDelta(40, $this->balanceOf($wallet), 0.00001, 'wallet credited once');
+        $this->assertSame(Status::PAYMENT_SUCCESS, (int) Deposit::whereKey($deposit->id)->value('status'));
+        $this->assertSame(1, Transaction::where('wallet_id', $wallet->id)->where('trx', $deposit->trx)->count());
+
+        // Reprocess the same deposit: now SUCCESS -> re-checked under the lock -> no-op.
+        $fresh = Deposit::find($deposit->id);
+        PaymentController::userDataUpdate($fresh);
+
+        $this->assertEqualsWithDelta(40, $this->balanceOf($wallet), 0.00001, 'replay must not credit again');
+        $this->assertSame(1, Transaction::where('wallet_id', $wallet->id)->where('trx', $deposit->trx)->count(), 'no duplicate ledger row');
     }
 }

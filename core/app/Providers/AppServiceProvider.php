@@ -52,6 +52,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(6)->by($request->ip());
         });
 
+        // SECURITY (Phase 7): throttle account registration and verification-code
+        // resend endpoints to curb automated signup abuse and email/SMS bombing.
+        RateLimiter::for('registration', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
         if (!cache()->get('SystemInstalled')) {
             $envFilePath = base_path('.env');
             if (!file_exists($envFilePath)) {

@@ -10,6 +10,7 @@ use App\Models\TransactionCharge;
 use App\Models\UserAction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class MoneyOutController extends Controller
@@ -263,80 +264,141 @@ class MoneyOutController extends Controller
             ]);
         }
 
-        $userAction->used = 1;
-        $userAction->save();
+        // ATOMICITY + IDEMPOTENCY (Phase 5, mirrors the Phase 3 deposit + API
+        // payment fixes): run the debit + agent credit + commission + ledger in
+        // one transaction, lock both wallet rows (id-ascending) and re-check the
+        // payer balance under the lock, and flip the one-shot UserAction `used`
+        // flag inside the same tx so a replayed call cannot run twice. Every
+        // amount/charge/commission/ledger field is unchanged.
+        $authId        = auth()->id();
+        $insufficient  = false;
+        $senderTrxRef  = null;
+        $hasCommission = false;
+        $userBalance   = null;
+        $agentBalance  = null;
 
-        $wallet->balance -= $details->totalAmount;
-        $wallet->save();
+        DB::transaction(function () use (
+            $details, $agent, $wallet, $agentWallet, $authId, $actionId,
+            &$insufficient, &$senderTrxRef, &$hasCommission, &$userBalance, &$agentBalance
+        ) {
+            $action = UserAction::where('id', $actionId)->where('used', 0)->lockForUpdate()->first();
+            if (!$action) {
+                return; // already processed -> idempotent no-op
+            }
 
-        $senderTrx                = new Transaction();
-        $senderTrx->user_id       = auth()->id();
-        $senderTrx->user_type     = 'USER';
-        $senderTrx->wallet_id     = $wallet->id;
-        $senderTrx->currency_id   = $wallet->currency_id;
-        $senderTrx->before_charge = $details->amount;
-        $senderTrx->amount        = $details->totalAmount;
-        $senderTrx->post_balance  = $wallet->balance;
-        $senderTrx->charge        = $details->totalCharge;
-        $senderTrx->charge_type   = '+';
-        $senderTrx->trx_type      = '-';
-        $senderTrx->remark        = 'money_out';
-        $senderTrx->details       = 'Money out to';
-        $senderTrx->receiver_id   = $agent->id;
-        $senderTrx->receiver_type = "AGENT";
-        $senderTrx->trx           = getTrx();
-        $senderTrx->save();
+            $ids = array_unique([$wallet->id, $agentWallet->id]);
+            sort($ids);
+            $locked = [];
+            foreach ($ids as $id) {
+                $locked[$id] = Wallet::where('id', $id)->lockForUpdate()->first();
+            }
+            $userWallet  = $locked[$wallet->id];
+            $agentWallet = $locked[$agentWallet->id];
 
-        $agentWallet->balance += $details->amount;
-        $agentWallet->save();
+            if ($details->totalAmount > $userWallet->balance) {
+                $insufficient = true;
+                return;
+            }
 
-        $agentTrx                = new Transaction();
-        $agentTrx->user_id       = $agent->id;
-        $agentTrx->user_type     = 'AGENT';
-        $agentTrx->wallet_id     = $agentWallet->id;
-        $agentTrx->currency_id   = $agentWallet->currency_id;
-        $agentTrx->before_charge = $details->amount;
-        $agentTrx->amount        = $details->amount;
-        $agentTrx->post_balance  = $agentWallet->balance;
-        $agentTrx->charge        = 0;
-        $agentTrx->charge_type   = '+';
-        $agentTrx->trx_type      = '+';
-        $agentTrx->remark        = 'money_out';
-        $agentTrx->details       = 'Money out from ';
-        $agentTrx->receiver_id   = auth()->id();
-        $agentTrx->receiver_type = "USER";
-        $agentTrx->trx           = $senderTrx->trx;
-        $agentTrx->save();
+            $action->used = 1;
+            $action->save();
 
-        if ($details->total_commission) {
-            //Agent commission
-            $agentWallet->balance += $details->total_commission;
+            $userWallet->balance -= $details->totalAmount;
+            $userWallet->save();
+
+            $senderTrx                = new Transaction();
+            $senderTrx->user_id       = $authId;
+            $senderTrx->user_type     = 'USER';
+            $senderTrx->wallet_id     = $userWallet->id;
+            $senderTrx->currency_id   = $userWallet->currency_id;
+            $senderTrx->before_charge = $details->amount;
+            $senderTrx->amount        = $details->totalAmount;
+            $senderTrx->post_balance  = $userWallet->balance;
+            $senderTrx->charge        = $details->totalCharge;
+            $senderTrx->charge_type   = '+';
+            $senderTrx->trx_type      = '-';
+            $senderTrx->remark        = 'money_out';
+            $senderTrx->details       = 'Money out to';
+            $senderTrx->receiver_id   = $agent->id;
+            $senderTrx->receiver_type = "AGENT";
+            $senderTrx->trx           = getTrx();
+            $senderTrx->save();
+
+            $agentWallet->balance += $details->amount;
             $agentWallet->save();
 
-            $agentCommissionTrx                = new Transaction();
-            $agentCommissionTrx->user_id       = $agent->id;
-            $agentCommissionTrx->user_type     = 'AGENT';
-            $agentCommissionTrx->wallet_id     = $agentWallet->id;
-            $agentCommissionTrx->currency_id   = $agentWallet->currency_id;
-            $agentCommissionTrx->before_charge = $details->total_commission;
-            $agentCommissionTrx->amount        = $details->total_commission;
-            $agentCommissionTrx->post_balance  = $agentWallet->balance;
-            $agentCommissionTrx->charge        = 0;
-            $agentCommissionTrx->charge_type   = '+';
-            $agentCommissionTrx->trx_type      = '+';
-            $agentCommissionTrx->remark        = 'commission';
-            $agentCommissionTrx->details       = 'Money out commission';
-            $agentCommissionTrx->trx           = $senderTrx->trx;
-            $agentCommissionTrx->save();
+            $agentTrx                = new Transaction();
+            $agentTrx->user_id       = $agent->id;
+            $agentTrx->user_type     = 'AGENT';
+            $agentTrx->wallet_id     = $agentWallet->id;
+            $agentTrx->currency_id   = $agentWallet->currency_id;
+            $agentTrx->before_charge = $details->amount;
+            $agentTrx->amount        = $details->amount;
+            $agentTrx->post_balance  = $agentWallet->balance;
+            $agentTrx->charge        = 0;
+            $agentTrx->charge_type   = '+';
+            $agentTrx->trx_type      = '+';
+            $agentTrx->remark        = 'money_out';
+            $agentTrx->details       = 'Money out from ';
+            $agentTrx->receiver_id   = $authId;
+            $agentTrx->receiver_type = "USER";
+            $agentTrx->trx           = $senderTrx->trx;
+            $agentTrx->save();
 
+            if ($details->total_commission) {
+                //Agent commission
+                $agentWallet->balance += $details->total_commission;
+                $agentWallet->save();
+
+                $agentCommissionTrx                = new Transaction();
+                $agentCommissionTrx->user_id       = $agent->id;
+                $agentCommissionTrx->user_type     = 'AGENT';
+                $agentCommissionTrx->wallet_id     = $agentWallet->id;
+                $agentCommissionTrx->currency_id   = $agentWallet->currency_id;
+                $agentCommissionTrx->before_charge = $details->total_commission;
+                $agentCommissionTrx->amount        = $details->total_commission;
+                $agentCommissionTrx->post_balance  = $agentWallet->balance;
+                $agentCommissionTrx->charge        = 0;
+                $agentCommissionTrx->charge_type   = '+';
+                $agentCommissionTrx->trx_type      = '+';
+                $agentCommissionTrx->remark        = 'commission';
+                $agentCommissionTrx->details       = 'Money out commission';
+                $agentCommissionTrx->trx           = $senderTrx->trx;
+                $agentCommissionTrx->save();
+
+                $hasCommission = true;
+            }
+
+            $senderTrxRef = $senderTrx;
+            $userBalance  = $userWallet->balance;
+            $agentBalance = $agentWallet->balance;
+        });
+
+        if ($insufficient) {
+            return response()->json([
+                'remark'  => 'validation_error',
+                'status'  => 'error',
+                'message' => ['error' => ['Sorry! Insufficient balance in wallet']],
+            ]);
+        }
+
+        if (!$senderTrxRef) {
+            return response()->json([
+                'remark'  => 'validation_error',
+                'status'  => 'error',
+                'message' => ['error' => ['Sorry! Unable to process']],
+            ]);
+        }
+
+        if ($hasCommission) {
             //Agent commission
             notify($agent, 'MONEY_OUT_COMMISSION_AGENT', [
                 'amount'        => showAmount($details->amount, $wallet->currency, currencyFormat:false),
                 'currency_code' => $wallet->currency->currency_code,
                 'commission'    => showAmount($details->total_commission, $wallet->currency, currencyFormat:false),
-                'trx'           => $senderTrx->trx,
-                'time'          => showDateTime($senderTrx->created_at, 'd/M/Y @h:i a'),
-                'balance'       => showAmount($agentWallet->balance, $wallet->currency, currencyFormat:false),
+                'trx'           => $senderTrxRef->trx,
+                'time'          => showDateTime($senderTrxRef->created_at, 'd/M/Y @h:i a'),
+                'balance'       => showAmount($agentBalance, $wallet->currency, currencyFormat:false),
             ]);
         }
 
@@ -346,9 +408,9 @@ class MoneyOutController extends Controller
             'charge'        => showAmount($details->totalCharge, $wallet->currency, currencyFormat:false),
             'currency_code' => $wallet->currency->currency_code,
             'agent'         => $agent->fullname . ' ( ' . $agent->username . ' )',
-            'trx'           => $senderTrx->trx,
-            'time'          => showDateTime($senderTrx->created_at, 'd/M/Y @h:i a'),
-            'balance'       => showAmount($wallet->balance, $wallet->currency, currencyFormat:false),
+            'trx'           => $senderTrxRef->trx,
+            'time'          => showDateTime($senderTrxRef->created_at, 'd/M/Y @h:i a'),
+            'balance'       => showAmount($userBalance, $wallet->currency, currencyFormat:false),
         ]);
 
         //To agent
@@ -356,9 +418,9 @@ class MoneyOutController extends Controller
             'amount'        => showAmount($details->amount, $wallet->currency, currencyFormat:false),
             'currency_code' => $wallet->currency->currency_code,
             'user'          => auth()->user()->fullname . ' ( ' . auth()->user()->username . ' )',
-            'trx'           => $senderTrx->trx,
-            'time'          => showDateTime($senderTrx->created_at, 'd/M/Y @h:i a'),
-            'balance'       => showAmount($agentWallet->balance - $details->total_commission, $wallet->currency, currencyFormat:false),
+            'trx'           => $senderTrxRef->trx,
+            'time'          => showDateTime($senderTrxRef->created_at, 'd/M/Y @h:i a'),
+            'balance'       => showAmount($agentBalance - $details->total_commission, $wallet->currency, currencyFormat:false),
         ]);
 
         return response()->json([

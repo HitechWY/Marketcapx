@@ -53,4 +53,25 @@ class RateLimitRoutesTest extends TestCase
         $this->assertNotNull($route, 'otp-resend route should exist.');
         $this->assertContains('throttle:otp', $route->gatherMiddleware());
     }
+
+    public function test_user_registration_is_throttled(): void
+    {
+        $route = $this->postRoute('user/register');
+        $this->assertNotNull($route, 'user/register POST should exist.');
+        $this->assertContains('throttle:registration', $route->gatherMiddleware());
+    }
+
+    public function test_api_registration_is_throttled(): void
+    {
+        $route = $this->postRoute('api/register');
+        $this->assertNotNull($route, 'api/register POST should exist.');
+        $this->assertContains('throttle:registration', $route->gatherMiddleware());
+    }
+
+    public function test_verification_resend_is_throttled(): void
+    {
+        $route = $this->anyRoute('user/resend-verify/{type}');
+        $this->assertNotNull($route, 'user/resend-verify route should exist.');
+        $this->assertContains('throttle:otp', $route->gatherMiddleware());
+    }
 }

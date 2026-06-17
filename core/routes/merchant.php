@@ -19,7 +19,7 @@ Route::name('merchant.')->group(function () {
 
             Route::controller('RegisterController')->group(function () {
                 Route::get('register', 'showRegistrationForm')->name('register');
-                Route::post('register', 'register')->middleware('registration.status');
+                Route::post('register', 'register')->middleware(['registration.status', 'throttle:registration']);
                 Route::post('check-mail', 'checkUser')->name('checkUser');
             });
 
@@ -40,7 +40,7 @@ Route::name('merchant.')->group(function () {
     Route::middleware('merchant')->group(function () {
         Route::namespace('Merchant')->controller('AuthorizationController')->group(function () {
             Route::get('authorization', 'authorizeForm')->name('authorization');
-            Route::get('resend-verify/{type}', 'sendVerifyCode')->name('send.verify.code');
+            Route::get('resend-verify/{type}', 'sendVerifyCode')->name('send.verify.code')->middleware('throttle:otp');
             Route::post('verify-email', 'emailVerification')->name('verify.email');
             Route::post('verify-mobile', 'mobileVerification')->name('verify.mobile');
             Route::post('verify-g2fa', 'g2faVerification')->name('2fa.verify');

@@ -1,5 +1,19 @@
 # Dependency Lock Recovery Plan (Phase 10)
 
+> **STATUS: RESOLVED (overnight pass).** The lock was regenerated via a controlled
+> `composer update` to **laravel/framework v13.16.1** with require-dev restored
+> (PHPUnit 12.5.30). GMP was enabled for that single invocation only with
+> `php -d extension=gmp <composer.phar> update` (no `php.ini` change) because the
+> default CLI lacks `ext-gmp` though `php_gmp.dll` is present. Verified after:
+> `composer validate` OK, `check-platform-reqs` all green (with gmp), autoload +
+> `bootstrap/app.php` load on 13.16.1, and `php artisan route:list` boots.
+> `composer.lock` is committed; `vendor/` stays gitignored. **Runtime note:** the
+> serving SAPI must have `ext-gmp` enabled. The original plan below is kept for
+> reference.
+
+---
+
+
 Controlled plan to bring `core/composer.lock` back into agreement with `composer.json`
 and the installed `vendor/`. **No `composer update` has been run** as part of producing
 this document — it is a plan only. Do not install from the current stale lock.

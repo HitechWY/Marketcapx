@@ -6,7 +6,7 @@ Route::name('api.merchant.')->group(function () {
 
     Route::namespace('Merchant\Auth')->group(function () {
         Route::post('login', 'LoginController@login')->middleware('throttle:login');
-        Route::post('register', 'RegisterController@register');
+        Route::post('register', 'RegisterController@register')->middleware('throttle:registration');
 
         Route::controller('ForgotPasswordController')->middleware('throttle:password-reset')->group(function () {
             Route::post('password/email', 'sendResetCodeEmail')->name('password.email');
@@ -20,7 +20,7 @@ Route::name('api.merchant.')->group(function () {
         //authorization
         Route::controller('Merchant\AuthorizationController')->group(function () {
             Route::get('authorization', 'authorization')->name('authorization');
-            Route::get('resend-verify/{type}', 'sendVerifyCode')->name('send.verify.code');
+            Route::get('resend-verify/{type}', 'sendVerifyCode')->name('send.verify.code')->middleware('throttle:otp');
             Route::post('verify-email', 'emailVerification')->name('verify.email');
             Route::post('verify-mobile', 'mobileVerification')->name('verify.mobile');
             Route::post('verify-g2fa', 'g2faVerification')->name('go2fa.verify');

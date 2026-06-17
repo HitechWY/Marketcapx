@@ -11,6 +11,7 @@ use App\Models\TransactionCharge;
 use App\Models\UserAction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class MakePaymentController extends Controller
@@ -231,53 +232,67 @@ class MakePaymentController extends Controller
             ]);
         }
 
-        $userAction->used = 1;
-        $userAction->save();
+        // ATOMICITY + IDEMPOTENCY (Phase 5, mirrors the Phase 3 deposit + web
+        // payment fixes): run the debit + credit + ledger inside one transaction,
+        // lock both wallet rows (id-ascending, deadlock-safe) and re-check the
+        // payer balance under the lock, and flip the one-shot UserAction `used`
+        // flag inside the same tx so a replayed call cannot charge twice. Every
+        // amount/charge/ledger field below is unchanged from the original flow.
+        $authId          = auth()->id();
+        $insufficient    = false;
+        $senderTrx       = null;
+        $userBalance     = null;
+        $merchantBalance = null;
 
-        $wallet->balance -= $details->userTotalAmount;
-        $wallet->save();
+        DB::transaction(function () use (
+            $details, $merchant, $wallet, $merchantWallet, $authId, $actionId,
+            &$insufficient, &$senderTrx, &$userBalance, &$merchantBalance
+        ) {
+            // Consume the one-shot action under a lock; bail if already used (replay).
+            $action = UserAction::where('id', $actionId)->where('used', 0)->lockForUpdate()->first();
+            if (!$action) {
+                return; // already processed -> idempotent no-op ($senderTrx stays null)
+            }
 
-        $senderTrx                = new Transaction();
-        $senderTrx->user_id       = auth()->id();
-        $senderTrx->user_type     = 'USER';
-        $senderTrx->wallet_id     = $wallet->id;
-        $senderTrx->currency_id   = $wallet->currency_id;
-        $senderTrx->before_charge = $details->amount;
-        $senderTrx->amount        = $details->userTotalAmount;
-        $senderTrx->post_balance  = $wallet->balance;
-        $senderTrx->charge        = $details->totalCharge;
-        $senderTrx->charge_type   = '+';
-        $senderTrx->trx_type      = '-';
-        $senderTrx->remark        = 'make_payment';
-        $senderTrx->details       = 'Payment successful to';
-        $senderTrx->receiver_id   = $merchant->id;
-        $senderTrx->receiver_type = "MERCHANT";
-        $senderTrx->trx           = getTrx();
-        $senderTrx->save();
+            $ids = array_unique([$wallet->id, $merchantWallet->id]);
+            sort($ids);
+            $locked = [];
+            foreach ($ids as $id) {
+                $locked[$id] = Wallet::where('id', $id)->lockForUpdate()->first();
+            }
+            $userWallet     = $locked[$wallet->id];
+            $merchantWallet = $locked[$merchantWallet->id];
 
-        $merchantWallet->balance += $details->amount;
-        $merchantWallet->save();
+            if ($details->userTotalAmount > $userWallet->balance) {
+                $insufficient = true;
+                return; // nothing written yet -> rolls back cleanly
+            }
 
-        $merchantTrx                = new Transaction();
-        $merchantTrx->user_id       = $merchant->id;
-        $merchantTrx->user_type     = 'MERCHANT';
-        $merchantTrx->wallet_id     = $merchantWallet->id;
-        $merchantTrx->currency_id   = $merchantWallet->currency_id;
-        $merchantTrx->before_charge = $details->amount;
-        $merchantTrx->amount        = $details->amount;
-        $merchantTrx->post_balance  = $merchantWallet->balance;
-        $merchantTrx->charge        = 0;
-        $merchantTrx->charge_type   = '+';
-        $merchantTrx->trx_type      = '+';
-        $merchantTrx->remark        = 'make_payment';
-        $merchantTrx->details       = 'Payment successful from';
-        $merchantTrx->receiver_id   = auth()->id();
-        $merchantTrx->receiver_type = "USER";
-        $merchantTrx->trx           = $senderTrx->trx;
-        $merchantTrx->save();
+            $action->used = 1;
+            $action->save();
 
-        if ($details->merchantTotalCharge > 0) {
-            $merchantWallet->balance -= $details->merchantTotalCharge;
+            $userWallet->balance -= $details->userTotalAmount;
+            $userWallet->save();
+
+            $senderTrx                = new Transaction();
+            $senderTrx->user_id       = $authId;
+            $senderTrx->user_type     = 'USER';
+            $senderTrx->wallet_id     = $userWallet->id;
+            $senderTrx->currency_id   = $userWallet->currency_id;
+            $senderTrx->before_charge = $details->amount;
+            $senderTrx->amount        = $details->userTotalAmount;
+            $senderTrx->post_balance  = $userWallet->balance;
+            $senderTrx->charge        = $details->totalCharge;
+            $senderTrx->charge_type   = '+';
+            $senderTrx->trx_type      = '-';
+            $senderTrx->remark        = 'make_payment';
+            $senderTrx->details       = 'Payment successful to';
+            $senderTrx->receiver_id   = $merchant->id;
+            $senderTrx->receiver_type = "MERCHANT";
+            $senderTrx->trx           = getTrx();
+            $senderTrx->save();
+
+            $merchantWallet->balance += $details->amount;
             $merchantWallet->save();
 
             $merchantTrx                = new Transaction();
@@ -285,18 +300,60 @@ class MakePaymentController extends Controller
             $merchantTrx->user_type     = 'MERCHANT';
             $merchantTrx->wallet_id     = $merchantWallet->id;
             $merchantTrx->currency_id   = $merchantWallet->currency_id;
-            $merchantTrx->before_charge = $details->merchantTotalCharge;
-            $merchantTrx->amount        = $details->merchantTotalCharge;
+            $merchantTrx->before_charge = $details->amount;
+            $merchantTrx->amount        = $details->amount;
             $merchantTrx->post_balance  = $merchantWallet->balance;
             $merchantTrx->charge        = 0;
             $merchantTrx->charge_type   = '+';
-            $merchantTrx->trx_type      = '-';
-            $merchantTrx->remark        = 'payment_charge';
-            $merchantTrx->details       = 'Payment charge';
-            $merchantTrx->receiver_id   = auth()->id();
+            $merchantTrx->trx_type      = '+';
+            $merchantTrx->remark        = 'make_payment';
+            $merchantTrx->details       = 'Payment successful from';
+            $merchantTrx->receiver_id   = $authId;
             $merchantTrx->receiver_type = "USER";
             $merchantTrx->trx           = $senderTrx->trx;
             $merchantTrx->save();
+
+            if ($details->merchantTotalCharge > 0) {
+                $merchantWallet->balance -= $details->merchantTotalCharge;
+                $merchantWallet->save();
+
+                $merchantTrx                = new Transaction();
+                $merchantTrx->user_id       = $merchant->id;
+                $merchantTrx->user_type     = 'MERCHANT';
+                $merchantTrx->wallet_id     = $merchantWallet->id;
+                $merchantTrx->currency_id   = $merchantWallet->currency_id;
+                $merchantTrx->before_charge = $details->merchantTotalCharge;
+                $merchantTrx->amount        = $details->merchantTotalCharge;
+                $merchantTrx->post_balance  = $merchantWallet->balance;
+                $merchantTrx->charge        = 0;
+                $merchantTrx->charge_type   = '+';
+                $merchantTrx->trx_type      = '-';
+                $merchantTrx->remark        = 'payment_charge';
+                $merchantTrx->details       = 'Payment charge';
+                $merchantTrx->receiver_id   = $authId;
+                $merchantTrx->receiver_type = "USER";
+                $merchantTrx->trx           = $senderTrx->trx;
+                $merchantTrx->save();
+            }
+
+            $userBalance     = $userWallet->balance;
+            $merchantBalance = $merchantWallet->balance;
+        });
+
+        if ($insufficient) {
+            return response()->json([
+                'remark'  => 'validation_error',
+                'status'  => 'error',
+                'message' => ['error' => ['Sorry! Insufficient balance in wallet']],
+            ]);
+        }
+
+        if (!$senderTrx) {
+            return response()->json([
+                'remark'  => 'validation_error',
+                'status'  => 'error',
+                'message' => ['error' => ['Sorry! Unable to process']],
+            ]);
         }
 
         notify($user, 'MAKE_PAYMENT', [
@@ -306,7 +363,7 @@ class MakePaymentController extends Controller
             'merchant'      => $merchant->fullname . ' ( ' . $merchant->username . ' )',
             'trx'           => $senderTrx->trx,
             'time'          => showDateTime($senderTrx->created_at, 'd/M/Y @h:i a'),
-            'balance'       => showAmount($wallet->balance, $wallet->currency, currencyFormat: false),
+            'balance'       => showAmount($userBalance, $wallet->currency, currencyFormat: false),
         ]);
 
         notify($merchant, 'MAKE_PAYMENT_MERCHANT', [
@@ -316,7 +373,7 @@ class MakePaymentController extends Controller
             'user'          => $user->fullname . ' ( ' . $user->username . ' )',
             'trx'           => $senderTrx->trx,
             'time'          => showDateTime($senderTrx->created_at, 'd/M/Y @h:i a'),
-            'balance'       => showAmount($merchantWallet->balance, $wallet->currency, currencyFormat: false),
+            'balance'       => showAmount($merchantBalance, $wallet->currency, currencyFormat: false),
         ]);
 
         return response()->json([

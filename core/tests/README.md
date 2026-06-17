@@ -46,10 +46,27 @@ Point `.env.testing` at `marketcapx_test`. Never run this against `paytabz_DB`.
   `otp` and `password-reset` = 6/min, each keyed per client. Catches a renamed
   limiter that `RateLimitRoutesTest` (string-only) would miss.
 - `Feature/AdminAuditLogTest.php` — admin audit-log middleware behavior.
-- `Feature/BlockchainIpnTest.php` — skipped placeholder for Phase 2 IPN
-  authenticity (needs a seeded test DB with a configured Blockchain gateway).
-- `Feature/DepositIdempotencyTest.php` — skipped placeholder for Phase 3
-  (needs a seeded test DB + the transaction/idempotency refactor).
+- `Feature/DepositIdempotencyTest.php` — **implemented** (DB-backed): the deposit
+  credit path is idempotent — reprocessing a SUCCESS deposit is a no-op (one
+  credit, one ledger row).
+- `Feature/BlockchainIpnTest.php` — still skipped: re-verifies the callback
+  against the external blockchain.info API, which would need an HTTP mock; left
+  skipped to honor "no real gateway calls".
+
+## DB-backed money-flow tests (`Feature/MoneyFlow/`)
+These use the `Tests\Concerns\CreatesMoneyFixtures` builders, the
+`DatabaseTransactions` trait (rolled back per test against `marketcapx_test`),
+and drive the controller `*Done/Confirm` methods directly with auth + session
+set up by hand (no real gateway calls):
+- `VoucherFlowTest` — redeem/create double-submit → exactly one effect.
+- `MakePaymentFlowTest` / `ApiMakePaymentFlowTest` — payment double-submit → one
+  payer debit + one merchant credit.
+- `MoneyOutFlowTest` / `MoneyInFlowTest` — double-submit → one move + commission.
+- `MoneyExchangeFlowTest` — double-submit cannot overdraft (lock + balance re-check).
+- `WithdrawalRejectFlowTest` — double reject → one refund.
+- `AdminBalanceFlowTest` — add/sub ledger; subtract beyond balance is a no-op.
+- `WalletAtomicityTest` — exception after `WalletService::credit` inside a
+  transaction rolls back balance + ledger.
 
 ## Notes
 - The application schema lives in the SQL dump, not in migrations, so feature
