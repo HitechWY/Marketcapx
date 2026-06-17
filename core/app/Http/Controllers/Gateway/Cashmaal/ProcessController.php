@@ -44,7 +44,7 @@ class ProcessController extends Controller
 
 
         $deposit = Deposit::where('trx', $_POST['order_id'])->orderBy('id', 'DESC')->first();
-        if ($request->ipn_key != $IPN_key && $web_id != $request->web_id) {
+        if ($request->ipn_key != $IPN_key || $web_id != $request->web_id) {
             $notify[] = ['error', 'Data invalid'];
             return redirect($deposit->failed_url)->withNotify($notify);
         }

@@ -52,7 +52,7 @@ class ProcessController extends Controller
             . $_POST['mb_currency']
             . $_POST['status'];
 
-        if (strtoupper(md5($concatFields)) == $_POST['md5sig'] && $_POST['status'] == 2 && $_POST['pay_to_email'] == $skrillrAcc->pay_to_email && $deposit->status = Status::PAYMENT_INITIATE) {
+        if (strtoupper(md5($concatFields)) == $_POST['md5sig'] && $_POST['status'] == 2 && $_POST['pay_to_email'] == $skrillrAcc->pay_to_email && $deposit->status == Status::PAYMENT_INITIATE) {
             PaymentController::userDataUpdate($deposit);
         }
     }
