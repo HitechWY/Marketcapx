@@ -73,16 +73,17 @@ id-ascending order to avoid deadlocks. Validate against the disposable
   `UserAction` for replay safety; enforcing OTP `used_at` at the done route is a
   separate pre-existing hardening item.
 
-## 4. Test coverage gap
+## 4. Test coverage (added)
 
-The app has **no model factories** and the schema lives in the SQL dump, so
-exercising the actual debit/credit math requires hand-built fixtures against
-`marketcapx_test`. The current suite covers boot, route registration, middleware
-wiring, and limiter definitions — not the money math. Recommended next step:
-add factories (or dump-seeded fixtures) for `User/Agent/Merchant`, `Wallet`,
-`Deposit`, `Voucher`, `UserAction`, then write idempotency/atomicity tests
-(double-submit → single effect; mid-flow failure → full rollback) for each
-hardened flow and for the §2 flows as they are implemented.
+The money-math is now exercised by DB-backed tests (`Feature/MoneyFlow/` +
+`Feature/DepositIdempotencyTest`) using `Tests\Concerns\CreatesMoneyFixtures`
+(hand-built fixtures, since the app has no factories) and `DatabaseTransactions`
+against the disposable `marketcapx_test` DB. Coverage: deposit, web+API payment,
+money-out, money-in, exchange (overdraft-safety), withdrawal reject, admin
+balance — each asserts double-submit → exactly one effect — plus a
+`WalletAtomicity` rollback test. Suite: **35 passed, 1 skipped**
+(`BlockchainIpnTest`, which needs an external-API mock). The §2 deferred flows
+still need their own tests as they are implemented.
 
 ## 5. Constraints honored
 No migrations/seeders on `paytabz_DB`; no real gateway/payment calls; no broad
