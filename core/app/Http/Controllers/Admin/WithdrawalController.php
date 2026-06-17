@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Models\Withdrawal;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WithdrawalController extends Controller
 {
@@ -167,38 +168,72 @@ class WithdrawalController extends Controller
     public function reject(Request $request)
     {
         $request->validate(['id' => 'required|integer']);
-        $withdraw = Withdrawal::where('id', $request->id)->where('status', Status::PAYMENT_PENDING)->with('user')->firstOrFail();
 
-        $user = $withdraw->user;
-        $wallet = Wallet::checkWallet(['user' => $user, 'type' => $withdraw->user_type])->find($withdraw->wallet_id);
+        $withdraw      = null;
+        $user          = null;
+        $wallet        = null;
+        $walletMissing = false;
+        $refunded      = false;
 
-        if (!$wallet) {
+        // ATOMICITY + IDEMPOTENCY (Phase 13, mirrors the Phase 3 deposit fix):
+        // lock the withdrawal row and re-check its status under the lock so two
+        // concurrent rejects can never both refund the wallet. The refund amount,
+        // ledger fields, and notification payload are unchanged.
+        DB::transaction(function () use ($request, &$withdraw, &$user, &$wallet, &$walletMissing, &$refunded) {
+            $withdraw = Withdrawal::where('id', $request->id)
+                ->where('status', Status::PAYMENT_PENDING)
+                ->lockForUpdate()
+                ->with('user')
+                ->first();
+
+            if (!$withdraw) {
+                return; // already processed or missing -> idempotent no-op
+            }
+
+            $user   = $withdraw->user;
+            $wallet = Wallet::checkWallet(['user' => $user, 'type' => $withdraw->user_type])->lockForUpdate()->find($withdraw->wallet_id);
+
+            if (!$wallet) {
+                $walletMissing = true;
+                return; // nothing persisted -> transaction rolls back cleanly
+            }
+
+            $withdraw->status         = Status::PAYMENT_REJECT;
+            $withdraw->admin_feedback = $request->details;
+            $withdraw->save();
+
+            $wallet->balance += $withdraw->amount;
+            $wallet->save();
+
+            $transaction               = new Transaction();
+            $transaction->user_id      = $withdraw->user_id;
+            $transaction->user_type     = $withdraw->user_type;
+            $transaction->wallet_id     = $wallet->id;
+            $transaction->currency_id   = $withdraw->currency_id;
+            $transaction->before_charge = $withdraw->amount;
+            $transaction->amount       = $withdraw->amount;
+            $transaction->post_balance = $wallet->balance;
+            $transaction->charge       = 0;
+            $transaction->trx_type     = '+';
+            $transaction->remark       = 'withdraw_reject';
+            $transaction->details      = 'Refunded for withdrawal rejection';
+            $transaction->trx          = $withdraw->trx;
+            $transaction->save();
+
+            $refunded = true;
+        });
+
+        if (!$withdraw) {
+            $notify[] = ['error', 'Withdrawal not found or already processed'];
+            return back()->withNotify($notify);
+        }
+
+        if ($walletMissing) {
             $notify[] = ['error', 'Wallet not found'];
             return back()->withNotify($notify);
         }
 
-        $withdraw->status         = Status::PAYMENT_REJECT;
-        $withdraw->admin_feedback = $request->details;
-        $withdraw->save();
-
-        $wallet->balance += $withdraw->amount;
-        $wallet->save();
-
-        $transaction               = new Transaction();
-        $transaction->user_id      = $withdraw->user_id;
-        $transaction->user_type     = $withdraw->user_type;
-        $transaction->wallet_id     = $wallet->id;
-        $transaction->currency_id   = $withdraw->currency_id;
-        $transaction->before_charge = $withdraw->amount;
-        $transaction->amount       = $withdraw->amount;
-        $transaction->post_balance = $wallet->balance;
-        $transaction->charge       = 0;
-        $transaction->trx_type     = '+';
-        $transaction->remark       = 'withdraw_reject';
-        $transaction->details      = 'Refunded for withdrawal rejection';
-        $transaction->trx          = $withdraw->trx;
-        $transaction->save();
-
+        // Notify only after a successful commit (no message on rollback).
         notify($user, 'WITHDRAW_REJECT', [
             'method_name'     => $withdraw->method->name,
             'method_currency' => $withdraw->currency,
