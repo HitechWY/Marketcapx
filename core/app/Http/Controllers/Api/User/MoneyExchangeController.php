@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\TransactionCharge;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class MoneyExchangeController extends Controller
@@ -126,53 +127,95 @@ class MoneyExchangeController extends Controller
             $finalAmount = getAmount($baseCurrAmount / $toWallet->currency->rate, 2);
         }
 
-        $fromWallet->balance -= $fromWalletAmount;
-        $fromWallet->save();
+        // ATOMICITY (Phase 5, mirrors the Phase 3 deposit fix): debit source +
+        // credit destination in one transaction with both wallet rows locked
+        // (id-ascending) and the source balance re-checked under the lock, so a
+        // partial failure can't lose money and concurrent exchanges can't
+        // overdraft. Amounts/charges/ledger fields unchanged.
+        $fromWalletTrxRef = null;
+        $insufficient     = false;
+        $fromBalance      = null;
+        $toBalance        = null;
 
-        $fromWalletTrx                = new Transaction();
-        $fromWalletTrx->user_id       = $user->id;
-        $fromWalletTrx->user_type     = 'USER';
-        $fromWalletTrx->wallet_id     = $fromWallet->id;
-        $fromWalletTrx->currency_id   = $fromWallet->currency_id;
-        $fromWalletTrx->before_charge = $request->amount;
-        $fromWalletTrx->amount        = $fromWalletAmount;
-        $fromWalletTrx->post_balance  = $fromWallet->balance;
-        $fromWalletTrx->charge        = $totalFromWalletCharge;
-        $fromWalletTrx->charge_type   = '+';
-        $fromWalletTrx->trx_type      = '-';
-        $fromWalletTrx->remark        = 'exchange_money';
-        $fromWalletTrx->details       = 'Exchange Money (From)';
-        $fromWalletTrx->trx           = getTrx();
-        $fromWalletTrx->save();
+        DB::transaction(function () use (
+            $user, $fromWallet, $toWallet, $request, $fromWalletAmount,
+            $totalFromWalletCharge, $finalAmount,
+            &$fromWalletTrxRef, &$insufficient, &$fromBalance, &$toBalance
+        ) {
+            $ids = [$fromWallet->id, $toWallet->id];
+            sort($ids);
+            $locked = [];
+            foreach ($ids as $id) {
+                $locked[$id] = Wallet::where('id', $id)->lockForUpdate()->first();
+            }
+            $fromW = $locked[$fromWallet->id];
+            $toW   = $locked[$toWallet->id];
 
-        $toWallet->balance += $finalAmount;
-        $toWallet->save();
+            if ($fromWalletAmount > $fromW->balance) {
+                $insufficient = true;
+                return;
+            }
 
-        $toWalletTrx                = new Transaction();
-        $toWalletTrx->user_id       = $user->id;
-        $toWalletTrx->user_type     = 'USER';
-        $toWalletTrx->wallet_id     = $toWallet->id;
-        $toWalletTrx->currency_id   = $toWallet->currency_id;
-        $toWalletTrx->before_charge = $finalAmount;
-        $toWalletTrx->amount        = $finalAmount;
-        $toWalletTrx->post_balance  = $toWallet->balance;
-        $toWalletTrx->charge        = 0;
-        $toWalletTrx->charge_type   = '+';
-        $toWalletTrx->trx_type      = '+';
-        $toWalletTrx->remark        = 'exchange_money';
-        $toWalletTrx->details       = 'Exchange Money (To)';
-        $toWalletTrx->trx           = $fromWalletTrx->trx;
-        $toWalletTrx->save();
+            $fromW->balance -= $fromWalletAmount;
+            $fromW->save();
+
+            $fromWalletTrx                = new Transaction();
+            $fromWalletTrx->user_id       = $user->id;
+            $fromWalletTrx->user_type     = 'USER';
+            $fromWalletTrx->wallet_id     = $fromW->id;
+            $fromWalletTrx->currency_id   = $fromW->currency_id;
+            $fromWalletTrx->before_charge = $request->amount;
+            $fromWalletTrx->amount        = $fromWalletAmount;
+            $fromWalletTrx->post_balance  = $fromW->balance;
+            $fromWalletTrx->charge        = $totalFromWalletCharge;
+            $fromWalletTrx->charge_type   = '+';
+            $fromWalletTrx->trx_type      = '-';
+            $fromWalletTrx->remark        = 'exchange_money';
+            $fromWalletTrx->details       = 'Exchange Money (From)';
+            $fromWalletTrx->trx           = getTrx();
+            $fromWalletTrx->save();
+
+            $toW->balance += $finalAmount;
+            $toW->save();
+
+            $toWalletTrx                = new Transaction();
+            $toWalletTrx->user_id       = $user->id;
+            $toWalletTrx->user_type     = 'USER';
+            $toWalletTrx->wallet_id     = $toW->id;
+            $toWalletTrx->currency_id   = $toW->currency_id;
+            $toWalletTrx->before_charge = $finalAmount;
+            $toWalletTrx->amount        = $finalAmount;
+            $toWalletTrx->post_balance  = $toW->balance;
+            $toWalletTrx->charge        = 0;
+            $toWalletTrx->charge_type   = '+';
+            $toWalletTrx->trx_type      = '+';
+            $toWalletTrx->remark        = 'exchange_money';
+            $toWalletTrx->details       = 'Exchange Money (To)';
+            $toWalletTrx->trx           = $fromWalletTrx->trx;
+            $toWalletTrx->save();
+
+            $fromWalletTrxRef = $fromWalletTrx;
+            $fromBalance      = $fromW->balance;
+            $toBalance        = $toW->balance;
+        });
+
+        if ($insufficient) {
+            return response()->json([
+                'remark'  => 'validation_error',
+                'status'  => 'error',
+                'message' => ['error' => ['Sorry! Insufficient balance in this wallet']],
+            ]);
+        }
 
         notify($user, 'EXCHANGE_MONEY', [
             'from_wallet_amount'   => $request->amount,
             'from_wallet_currency' => $fromWallet->currency->currency_code,
             'to_wallet_amount'     => showAmount($finalAmount, $fromWallet->currency, currencyFormat:false),
             'to_wallet_currency'   => $toWallet->currency->currency_code,
-            'from_balance'         => showAmount($fromWallet->balance, $fromWallet->currency, currencyFormat:false),
-            'to_balance'           => showAmount($toWallet->balance, $fromWallet->currency, currencyFormat:false),
-            'trx'                  => $fromWalletTrx->trx,
-            'time'                 => showDateTime($fromWalletTrx->created_at, 'd/M/Y @h:i a'),
+            'from_balance'         => showAmount($fromBalance, $fromWallet->currency, currencyFormat:false),
+            'to_balance'           => showAmount($toBalance, $fromWallet->currency, currencyFormat:false),
+            'trx'                  => $fromWalletTrxRef->trx,
+            'time'                 => showDateTime($fromWalletTrxRef->created_at, 'd/M/Y @h:i a'),
         ]);
 
         return response()->json([
