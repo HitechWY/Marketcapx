@@ -36,6 +36,11 @@ DB::transaction(function () use (...) {
 | Voucher create (web + API) | `User/`+`Api/User/VoucherController::userVoucherCreateDone()` | Phase 5: locked tx, wallet lock, consume action (no double-mint). |
 | Voucher redeem (web + API) | `User/`+`Api/User/VoucherController::userVoucherRedeemConfirm()` | Phase 5: lock voucher + mark-used-under-lock (kills double-redeem race); web creates wallet if missing. |
 | Admin add/subtract balance | `Admin/ManageGuardController::addSubBalance()` | Phase 5: locked tx, wallet lock, sufficiency re-check. |
+| Transfer money (web + API) | `User/`+`Api/User/UserOperationController::transferMoneyDone()` | Deferred wave: locked tx, both wallets id-ascending, balance re-check, consume action (web delete / API used=1). |
+| Withdrawal submit (web + API) | `Traits/WithdrawProcess::withdrawSubmitDone()`, `Api/Withdraw::withdrawSubmitDone()` | Deferred wave: lock withdrawal (status==0) + wallet, re-check balance, flip status + consume action under lock (kills concurrent double-debit). |
+| Invoice payment (web) | `User/InvoiceController::invoicePaymentConfirmDone()` | Deferred wave: lock invoice (pay_status==0) + both wallets, debit/credit, flip pay_status, consume action; receiver-wallet null guard added. |
+| Hosted API payment (web) | `GetPaymentController::verifyPaymentConfirm()` | Deferred wave: lock apiPayment (status==0) + both wallets, set status BEFORE crediting, IPN curl/notify moved after commit. |
+| Escrow milestone pay | `User/MilestoneController::payMilestoneDone()` | Deferred wave: lock milestone (unfunded) + wallet + escrow row, re-check balance, debit + fund + bump escrow paid_amount, consume action. |
 
 All preserve every amount/charge/commission/remark/notification/redirect; only
 transaction + lock + single-use scaffolding was added, with notifications moved
@@ -45,23 +50,25 @@ model factories; schema is dump-based) — see §4.
 
 ## 2. Deferred — documented, NOT rewritten (apply the §0 pattern with tests)
 
-These were intentionally left for a test-backed pass because they are
-multi-step / multi-state and a blind rewrite risks a behavior regression:
+The single-pattern deferred flows (transfer, withdrawal-submit, invoice,
+hosted API payment, milestone) were hardened + test-covered in the
+`work/deferred-money-flows` wave and are now in §1. **Escrow** remains
+documentation-only — it is a genuine multi-party state machine where a blind
+rewrite risks changing payout/dispute behavior, and it needs purpose-built
+multi-party fixtures before any code change.
 
-| Flow | Controller / method | Why deferred / what to do |
-| ---- | ------------------- | ------------------------- |
-| Escrow | `User/EscrowController` (`dispatchEscrow`, `accept`, `cancel`, `dispute`), `Admin/EscrowController` | Multi-party escrow state machine with dispute/release branches; each balance move must be wrapped + locked and the escrow status transition re-checked under the lock. Highest value, highest regression risk without tests. |
-| Milestone | `User/MilestoneController::payMilestoneDone()` | Milestone pay/release tied to escrow state; same pattern, lock the milestone + wallet rows. |
-| Invoice payment | `User/InvoiceController::invoicePaymentConfirmDone()` | Two-party settlement; wrap debit+credit+ledger, lock both wallets, guard against paying an already-paid invoice (status under lock). |
-| API gateway payment | `GetPaymentController::verifyPaymentConfirm()` | Payer+merchant move; set the apiPayment status inside the locked tx before/with crediting (currently set after). |
-| Transfer money | `User/UserOperationController::transferMoney*` / `Api/.../UserOperationController` | User→user transfer; lock both wallets, consume the action. |
-| Withdrawal submit (debit) | `Traits/WithdrawProcess::withdrawSubmitDone()`, `Api/Withdraw` | Debits at submit time; wrap the debit + withdrawal-record insert and consume the action under a lock. |
+| Flow | Controller / method | Concrete gaps (verified) / what to do |
+| ---- | ------------------- | ------------------------------------- |
+| Escrow dispatch (release to seller) | `User/EscrowController::dispatchEscrow()` (~L502–570) | Seller wallet credit + seller-charge deduction + ledger run with **no `DB::transaction`, no `lockForUpdate`**, guarded only by an `accepted()` status read outside any lock. Wrap the credit+charge+ledger, lock the escrow row and re-check status under the lock, lock the seller wallet. |
+| Escrow dispute resolution (admin) | `Admin/EscrowController::action()` (~L147–252) | Credits **both** buyer and seller wallets based on the dispute outcome with no tx/lock and only a `disputed()` status pre-check. Highest-risk path: wrap both credits + ledger, lock both wallets id-ascending, re-check the escrow status under the lock so a double-resolve cannot double-pay. |
+| Escrow accept / cancel / dispute | `User/EscrowController::accept()/cancel()/dispute()` | Status-only transitions (no balance move). Lower risk, but the status flip should still be re-checked under a lock to avoid conflicting concurrent transitions. |
 
 For each: apply the §0 pattern — transaction + `lockForUpdate` on every wallet
-and the state row, re-check state/balance under the lock, consume the one-shot
-token inside the tx, side effects after commit. Lock multiple wallets in
-id-ascending order to avoid deadlocks. Validate against the disposable
-`marketcapx_test` DB (see `tests/README.md`) before shipping.
+and the escrow row, re-check state/balance under the lock, side effects after
+commit, locking multiple wallets in id-ascending order. **Build multi-party
+escrow fixtures first** (buyer + seller + escrow + milestones) and add
+double-submit/double-resolve tests before touching the code. Validate against
+the disposable `marketcapx_test` DB (see `tests/README.md`).
 
 ## 3. Notes / observations (not changed)
 
@@ -80,10 +87,12 @@ The money-math is now exercised by DB-backed tests (`Feature/MoneyFlow/` +
 (hand-built fixtures, since the app has no factories) and `DatabaseTransactions`
 against the disposable `marketcapx_test` DB. Coverage: deposit, web+API payment,
 money-out, money-in, exchange (overdraft-safety), withdrawal reject, admin
-balance — each asserts double-submit → exactly one effect — plus a
-`WalletAtomicity` rollback test. Suite: **35 passed, 1 skipped**
-(`BlockchainIpnTest`, which needs an external-API mock). The §2 deferred flows
-still need their own tests as they are implemented.
+balance, plus the deferred wave — transfer (web+API), withdrawal-submit
+(web+API), invoice payment, hosted API payment, milestone pay — each asserts
+double-submit → exactly one effect — plus a `WalletAtomicity` rollback test.
+Suite: **42 passed, 1 skipped** (`BlockchainIpnTest`, which needs an
+external-API mock). Only **escrow** (§2) remains without tests; it needs
+multi-party fixtures before implementation.
 
 ## 5. Constraints honored
 No migrations/seeders on `paytabz_DB`; no real gateway/payment calls; no broad
