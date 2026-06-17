@@ -4,6 +4,8 @@ namespace Tests\Concerns;
 
 use App\Models\Agent;
 use App\Models\Currency;
+use App\Models\Deposit;
+use App\Models\GatewayCurrency;
 use App\Models\Merchant;
 use App\Models\Admin;
 use App\Models\User;
@@ -181,6 +183,44 @@ trait CreatesMoneyFixtures
         $w->save();
 
         return $w;
+    }
+
+    protected function makeGatewayCurrency(int $methodCode, string $currencyCode, string $name = 'Test Gateway'): GatewayCurrency
+    {
+        $gc = new GatewayCurrency();
+        $gc->name          = $name;
+        $gc->method_code   = $methodCode;
+        $gc->currency      = $currencyCode;
+        $gc->symbol        = '$';
+        $gc->gateway_alias = 'test';
+        $gc->min_amount    = 0;
+        $gc->max_amount    = 1000000;
+        $gc->rate          = 1;
+        $gc->save();
+
+        return $gc;
+    }
+
+    protected function makeDeposit(User $user, Wallet $wallet, Currency $currency, $amount, int $methodCode, int $status): Deposit
+    {
+        $d = new Deposit();
+        $d->user_id         = $user->id;
+        $d->user_type       = 'USER';
+        $d->method_code     = $methodCode;
+        $d->method_currency = $currency->currency_code;
+        $d->amount          = $amount;
+        $d->wallet_id       = $wallet->id;
+        $d->currency_id     = $currency->id;
+        $d->charge          = 0;
+        $d->rate            = 1;
+        $d->final_amount    = $amount;
+        $d->btc_amount      = 0;
+        $d->btc_wallet      = '';
+        $d->trx             = $this->uniq('DEP');
+        $d->status          = $status;
+        $d->save();
+
+        return $d;
     }
 
     protected function balanceOf(Wallet $wallet)
