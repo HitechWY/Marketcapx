@@ -5,7 +5,10 @@ use Illuminate\Support\Facades\Route;
 // SECURITY (Phase 1): removed public unauthenticated GET /clear route that ran
 // Artisan optimize:clear with no auth (cache-wipe / DoS vector). Use artisan CLI instead.
 
-Route::get('cron', 'CronController@cron')->name('cron');
+// SECURITY (Phase 1B): /cron guarded by a configurable shared-secret token
+// (App\Http\Middleware\VerifyCronToken). Enforced when CRON_SECRET is set;
+// backward-compatible (open + logged) until then.
+Route::get('cron', 'CronController@cron')->middleware(\App\Http\Middleware\VerifyCronToken::class)->name('cron');
 
 // User Support Ticket
 Route::controller('TicketController')->prefix('ticket')->name('ticket.')->group(function () {
