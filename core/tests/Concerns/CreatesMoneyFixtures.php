@@ -5,10 +5,13 @@ namespace Tests\Concerns;
 use App\Models\Agent;
 use App\Models\Currency;
 use App\Models\Merchant;
+use App\Models\Admin;
 use App\Models\User;
 use App\Models\UserAction;
 use App\Models\Voucher;
 use App\Models\Wallet;
+use App\Models\WithdrawMethod;
+use App\Models\Withdrawal;
 
 /**
  * Disposable fixtures for money-flow tests. Rows are created with direct
@@ -131,6 +134,53 @@ trait CreatesMoneyFixtures
         $v->save();
 
         return $v;
+    }
+
+    protected function makeAdmin(): Admin
+    {
+        $a = new Admin();
+        $a->name     = 'Test Admin';
+        $a->username = $this->uniq('admin');
+        $a->email    = $this->uniq('admin') . '@example.test';
+        $a->password = bcrypt('password');
+        $a->save();
+
+        return $a;
+    }
+
+    protected function makeWithdrawMethod(): WithdrawMethod
+    {
+        $m = new WithdrawMethod();
+        $m->name        = 'Test Method';
+        $m->min_limit   = 0;
+        $m->max_limit   = 1000000;
+        $m->fixed_charge = 0;
+        $m->rate        = 1;
+        $m->status      = 1;
+        $m->save();
+
+        return $m;
+    }
+
+    protected function makeWithdrawal(User $user, Wallet $wallet, WithdrawMethod $method, $amount, int $status): Withdrawal
+    {
+        $w = new Withdrawal();
+        $w->method_id    = $method->id;
+        $w->user_id      = $user->id;
+        $w->user_type    = 'USER';
+        $w->wallet_id    = $wallet->id;
+        $w->currency_id  = $wallet->currency_id;
+        $w->currency     = $wallet->currency_code;
+        $w->amount       = $amount;
+        $w->charge       = 0;
+        $w->rate         = 1;
+        $w->final_amount = $amount;
+        $w->after_charge = $amount;
+        $w->trx          = $this->uniq('WD');
+        $w->status       = $status;
+        $w->save();
+
+        return $w;
     }
 
     protected function balanceOf(Wallet $wallet)
