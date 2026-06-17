@@ -29,6 +29,11 @@ pick them up automatically.
 - `2026_01_01_000002_add_indexes_to_financial_tables.php`
   - Non-unique performance indexes on transactions(user_id), transactions(wallet_id),
     transactions(trx), deposits(trx), withdrawals(user_id).
+- `2026_01_01_000003_create_rbac_roles_permissions.php` (Phase 6 / RBAC)
+  - Creates `roles`, `permissions`, `permission_role` pivot, and adds a nullable
+    `admins.role_id` (null = legacy full access). Rollout step 1 of
+    `docs/RBAC-DESIGN.md`. Backward-compatible; the `permission` middleware and
+    deny-by-default flip (rollout steps 3-5) are NOT part of this draft.
 
 ## Deliberately NOT included
 - A UNIQUE index on `transactions.trx`: transfers/payments create multiple rows
