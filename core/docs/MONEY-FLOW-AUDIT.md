@@ -41,6 +41,20 @@ DB::transaction(function () use (...) {
   happens at withdrawal-request time); it only flips status + notifies, and is
   idempotent via the `where status = PENDING` + `firstOrFail` guard. A race would
   at worst duplicate a notification. Left unchanged (low risk, no money effect).
+- **User → merchant payment** — `User/MakePaymentController::paymentDone()`.
+  The debit (user) + credit (merchant) + up-to-three ledger rows ran with **no
+  transaction** (a mid-flow failure could debit the payer without paying the
+  merchant) and on **unlocked** wallet reads, and the one-shot `UserAction`
+  intent was **never consumed** — a refreshed/replayed done-route request
+  re-charged the payer (worse when no OTP is configured, since `paymentConfirm`
+  redirects straight to the done route). Fix: wrap in `DB::transaction`, lock
+  both wallet rows in id-ascending order, re-check the payer balance under the
+  lock, and `delete()` the `UserAction` inside the transaction so the flow runs
+  exactly once. Every amount/charge/ledger field is unchanged; notifications
+  moved after commit. `php -l` clean.
+  Residual: enforcing OTP `used_at` at the done route is a separate pre-existing
+  concern, now moot for replay because the intent row is deleted on success.
+  **Untested** (no test DB) — validate before relying on it in production.
 
 ## 3. Flows to review next (NOT changed — need a test DB to verify safely)
 
@@ -50,7 +64,8 @@ concurrency race or missing transaction could corrupt balances. Prioritized:
 
 | Priority | Flow / controller | Concern to confirm |
 | -------- | ----------------- | ------------------ |
-| High | `User/MakePaymentController`, `Api/User/MakePaymentController` | debit payer + credit payee must be one atomic, locked transaction |
+| Done | `User/MakePaymentController` | FIXED in §2 — atomic, locked, single-use. |
+| High | `Api/User/MakePaymentController` | API twin of the fixed flow; apply the same transaction/lock/consume pattern |
 | High | `User/MoneyOutController`, `Api/User/MoneyOutController`, `Agent/MoneyInController`, `Api/Agent/MoneyInController` | cash in/out balance moves; lock + idempotency |
 | High | `User/EscrowController`, `Admin/EscrowController`, `User/MilestoneController` | escrow hold/release across parties; partial-failure atomicity |
 | Medium | `User/MoneyExchangeController`, `Api/User/MoneyExchangeController` | two-wallet exchange must be atomic |
