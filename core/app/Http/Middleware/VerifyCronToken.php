@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\Log;
 /**
  * Guards the public GET /cron endpoint.
  *
- * Behaviour:
+ * Behaviour (fail closed):
+ *  - If no secret is configured (CRON_SECRET empty/unset), the request is rejected
+ *    with 403 and cron work never runs.
  *  - If config('cron.secret') is configured, the request must present the same
  *    value via the "X-CRON-TOKEN" header or a "token" query parameter, compared
- *    with hash_equals(). Otherwise it is rejected with 403.
- *  - If no secret is configured, the request is allowed (backward compatible with
- *    existing schedulers) but a warning is logged so operators set CRON_SECRET.
+ *    with hash_equals(); otherwise it is rejected with 403.
  *
  * The secret value itself is never logged.
  */
@@ -24,9 +24,11 @@ class VerifyCronToken
     {
         $expected = (string) config('cron.secret', '');
 
+        // Fail closed: with no CRON_SECRET configured the endpoint is rejected and
+        // cron work never runs. Set CRON_SECRET (env) to enable authenticated access.
         if ($expected === '') {
-            Log::warning('Cron endpoint accessed without CRON_SECRET configured; endpoint is currently unauthenticated. Set CRON_SECRET to secure it.');
-            return $next($request);
+            Log::warning('Cron endpoint rejected: CRON_SECRET is not configured. Set CRON_SECRET to enable /cron.');
+            abort(403, 'Cron endpoint is disabled until CRON_SECRET is configured.');
         }
 
         $provided = $request->header('X-CRON-TOKEN');
