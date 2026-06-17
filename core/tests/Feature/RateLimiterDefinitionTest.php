@@ -51,11 +51,16 @@ class RateLimiterDefinitionTest extends TestCase
         $this->assertSame(6, $this->resolveLimit('password-reset')->maxAttempts);
     }
 
+    public function test_registration_limiter_allows_five_per_minute(): void
+    {
+        $this->assertSame(5, $this->resolveLimit('registration')->maxAttempts);
+    }
+
     public function test_limiters_are_keyed_per_client(): void
     {
         // Each sensitive limiter is keyed (by IP) rather than global, so one
         // client cannot exhaust the bucket for everyone.
-        foreach (['login', 'otp', 'password-reset'] as $name) {
+        foreach (['login', 'otp', 'password-reset', 'registration'] as $name) {
             $this->assertNotSame(
                 '',
                 (string) $this->resolveLimit($name)->key,

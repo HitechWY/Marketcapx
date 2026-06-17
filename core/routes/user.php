@@ -12,7 +12,7 @@ Route::namespace('User\Auth')->name('user.')->middleware('guest')->group(functio
 
     Route::controller('RegisterController')->middleware(['guest'])->group(function () {
         Route::get('register', 'showRegistrationForm')->name('register');
-        Route::post('register', 'register')->middleware('registration.status');;
+        Route::post('register', 'register')->middleware(['registration.status', 'throttle:registration']);
         Route::post('check-user', 'checkUser')->name('checkUser')->withoutMiddleware('guest');
     });
 
@@ -42,7 +42,7 @@ Route::middleware('auth')->name('user.')->group(function () {
     //authorization
     Route::middleware('registration.complete')->namespace('User')->controller('AuthorizationController')->group(function () {
         Route::get('authorization', 'authorizeForm')->name('authorization');
-        Route::get('resend-verify/{type}', 'sendVerifyCode')->name('send.verify.code');
+        Route::get('resend-verify/{type}', 'sendVerifyCode')->name('send.verify.code')->middleware('throttle:otp');
         Route::post('verify-email', 'emailVerification')->name('verify.email');
         Route::post('verify-mobile', 'mobileVerification')->name('verify.mobile');
         Route::post('verify-g2fa', 'g2faVerification')->name('2fa.verify');

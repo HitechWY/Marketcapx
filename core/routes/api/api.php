@@ -41,7 +41,7 @@ Route::namespace('Api')->name('api.')->group(function () {
             Route::post('check-token', 'checkToken');
             Route::post('social-login', 'socialLogin');
         });
-        Route::post('register', 'RegisterController@register');
+        Route::post('register', 'RegisterController@register')->middleware('throttle:registration');
 
         Route::controller('ForgotPasswordController')->middleware('throttle:password-reset')->group(function () {
             Route::post('password/email', 'sendResetCodeEmail');
@@ -57,7 +57,7 @@ Route::namespace('Api')->name('api.')->group(function () {
         //authorization
         Route::middleware('registration.complete')->controller('AuthorizationController')->group(function () {
             Route::get('authorization', 'authorization');
-            Route::get('resend-verify/{type}', 'sendVerifyCode');
+            Route::get('resend-verify/{type}', 'sendVerifyCode')->middleware('throttle:otp');
             Route::post('verify-email', 'emailVerification');
             Route::post('verify-mobile', 'mobileVerification');
             Route::post('verify-g2fa', 'g2faVerification');
