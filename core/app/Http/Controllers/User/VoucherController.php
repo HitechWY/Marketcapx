@@ -10,6 +10,7 @@ use App\Models\UserAction;
 use App\Models\Withdrawal;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Lib\UserActionProcess;
 use App\Models\TransactionCharge;
 use App\Http\Controllers\Controller;
@@ -128,50 +129,85 @@ class VoucherController extends Controller{
             return to_route('user.voucher.create')->withNotify($notify)->withInput();
         }
 
-        $wallet->balance -=  $details->totalAmount;
-        $wallet->save();
+        // ATOMICITY + IDEMPOTENCY (Phase 5): debit the wallet and write the
+        // voucher + ledger + withdrawal record in one locked transaction, and
+        // consume the one-shot UserAction inside the tx so a refreshed/replayed
+        // submit cannot mint a second voucher or double-debit. Fields unchanged.
+        $authId       = auth()->id();
+        $actionId     = session('action_id');
+        $insufficient = false;
+        $created      = false;
 
-        $voucher = new Voucher();
-        $voucher->user_id = auth()->id();
-        $voucher->user_type =  'USER';
-        $voucher->currency_id = $wallet->currency_id;
-        $voucher->amount = $details->amount;
-        $voucher->voucher_code = getVoucher();
-        $voucher->save();
+        DB::transaction(function () use ($details, $wallet, $authId, $actionId, &$insufficient, &$created) {
+            $action = UserAction::where('id', $actionId)->lockForUpdate()->first();
+            if (!$action) {
+                return; // already processed -> idempotent no-op
+            }
 
-        $trx = new Transaction();
-        $trx->user_id = auth()->id();
-        $trx->user_type = 'USER';
-        $trx->wallet_id = $wallet->id;
-        $trx->currency_id = $wallet->currency_id;
-        $trx->before_charge = $details->amount;
-        $trx->amount = $details->totalAmount;
-        $trx->post_balance =  $wallet->balance;
-        $trx->charge =  $details->totalCharge;
-        $trx->charge_type = '+';
-        $trx->trx_type = '-';
-        $trx->remark = 'create_voucher';
-        $trx->details = 'Voucher created successfully';
-        $trx->trx = getTrx();
-        $trx->save();
+            $w = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+            if ($details->totalAmount > $w->balance) {
+                $insufficient = true;
+                return;
+            }
 
-        $withdraw = new Withdrawal();
-        $withdraw->method_id = 0;
-        $withdraw->user_id = auth()->id();
-        $withdraw->user_type = 'USER';
-        $withdraw->amount = $details->totalAmount;
-        $withdraw->rate = $wallet->currency->rate;
-        $withdraw->currency_id = $wallet->currency_id;
-        $withdraw->wallet_id = $wallet->id;
-        $withdraw->currency = $wallet->currency->currency_code;
-        $withdraw->charge = $details->totalCharge;
-        $withdraw->final_amount = $details->amount;
-        $withdraw->after_charge = $withdraw->final_amount;
-        $withdraw->withdraw_information = null;
-        $withdraw->trx = getTrx();  
-        $withdraw->status = 1;
-        $withdraw->save();
-        
+            $w->balance -=  $details->totalAmount;
+            $w->save();
+
+            $voucher = new Voucher();
+            $voucher->user_id = $authId;
+            $voucher->user_type =  'USER';
+            $voucher->currency_id = $w->currency_id;
+            $voucher->amount = $details->amount;
+            $voucher->voucher_code = getVoucher();
+            $voucher->save();
+
+            $trx = new Transaction();
+            $trx->user_id = $authId;
+            $trx->user_type = 'USER';
+            $trx->wallet_id = $w->id;
+            $trx->currency_id = $w->currency_id;
+            $trx->before_charge = $details->amount;
+            $trx->amount = $details->totalAmount;
+            $trx->post_balance =  $w->balance;
+            $trx->charge =  $details->totalCharge;
+            $trx->charge_type = '+';
+            $trx->trx_type = '-';
+            $trx->remark = 'create_voucher';
+            $trx->details = 'Voucher created successfully';
+            $trx->trx = getTrx();
+            $trx->save();
+
+            $withdraw = new Withdrawal();
+            $withdraw->method_id = 0;
+            $withdraw->user_id = $authId;
+            $withdraw->user_type = 'USER';
+            $withdraw->amount = $details->totalAmount;
+            $withdraw->rate = $w->currency->rate;
+            $withdraw->currency_id = $w->currency_id;
+            $withdraw->wallet_id = $w->id;
+            $withdraw->currency = $w->currency->currency_code;
+            $withdraw->charge = $details->totalCharge;
+            $withdraw->final_amount = $details->amount;
+            $withdraw->after_charge = $withdraw->final_amount;
+            $withdraw->withdraw_information = null;
+            $withdraw->trx = getTrx();
+            $withdraw->status = 1;
+            $withdraw->save();
+
+            $action->delete(); // one-shot: prevent replay
+            $created = true;
+        });
+
+        if ($insufficient) {
+            $notify[] = ['error', 'Sorry! Insufficient balance in wallet'];
+            return to_route('user.voucher.create')->withNotify($notify)->withInput();
+        }
+
+        if (!$created) {
+            $notify[] = ['error', 'Sorry! Unable to process'];
+            return to_route('user.voucher.create')->withNotify($notify)->withInput();
+        }
+
         $notify[] = ['success', 'Voucher created successfully'];
         return to_route('user.voucher.list')->withNotify($notify);
     }
@@ -195,48 +231,79 @@ class VoucherController extends Controller{
 
         $user = auth()->user();
         $wallet = Wallet::checkWallet(['user' => auth()->user(), 'type' => 'USER'])->where('currency_id', $voucher->currency_id)->first();
+        if (!$wallet) {
+            $wallet = createWallet($voucher->currency, $user);
+        }
 
-        $deposit = new Deposit();
-        $deposit->user_id = $user->id;
-        $deposit->user_type = 'USER';
-        $deposit->method_code = 0;
-        $deposit->amount = $voucher->amount;
-        $deposit->wallet_id = $wallet->id;
-        $deposit->currency_id = $wallet->currency_id;
-        $deposit->method_currency = $wallet->currency->currency_code;
-        $deposit->charge = 0;
-        $deposit->rate = $wallet->currency->rate;
-        $deposit->final_amount = $voucher->amount;
-        $deposit->btc_amount = 0;
-        $deposit->btc_wallet = "";
-        $deposit->trx = getTrx();
-        $deposit->status = 1;
-        $deposit->save();
+        // ATOMICITY + IDEMPOTENCY (Phase 5): the original checked is_used=0 and
+        // only set is_used=1 AFTER crediting, with no lock/transaction, so two
+        // concurrent redeems of the same code could both credit (double-spend).
+        // Lock the voucher row, re-check unused under the lock, mark it used, and
+        // credit the wallet -- all in one transaction. Deposit/ledger fields
+        // unchanged.
+        $userId      = $user->id;
+        $walletId    = $wallet->id;
+        $alreadyUsed = false;
+        $depositRef  = null;
 
-        $wallet->balance += $voucher->amount;
-        $wallet->save();
+        DB::transaction(function () use ($voucher, $userId, $walletId, &$alreadyUsed, &$depositRef) {
+            $v = Voucher::where('id', $voucher->id)->where('is_used', 0)->lockForUpdate()->first();
+            if (!$v) {
+                $alreadyUsed = true;
+                return; // already redeemed (or lost a race) -> no credit
+            }
 
-        $trx = new Transaction();
-        $trx->user_id = $user->id;
-        $trx->user_type = 'USER';
-        $trx->wallet_id = $wallet->id;
-        $trx->currency_id = $wallet->currency_id;
-        $trx->before_charge = $voucher->amount;
-        $trx->amount = $voucher->amount;
-        $trx->post_balance = $wallet->balance;
-        $trx->charge =  0;
-        $trx->charge_type = '+';
-        $trx->trx_type = '+';
-        $trx->remark = 'redeem_voucher';
-        $trx->details = 'Redeemed Voucher ';
-        $trx->trx = $deposit->trx;
-        $trx->save();
+            $v->is_used     = 1;
+            $v->redeemer_id = $userId;
+            $v->save();
 
-        $voucher->is_used = 1;
-        $voucher->redeemer_id = $user->id;
-        $voucher->save();
+            $w = Wallet::where('id', $walletId)->lockForUpdate()->first();
 
-        $notify[] = ['success', getAmount($voucher->amount) . ' ' . $deposit->method_currency . ' has been added to your wallet'];
+            $deposit = new Deposit();
+            $deposit->user_id = $userId;
+            $deposit->user_type = 'USER';
+            $deposit->method_code = 0;
+            $deposit->amount = $v->amount;
+            $deposit->wallet_id = $w->id;
+            $deposit->currency_id = $w->currency_id;
+            $deposit->method_currency = $w->currency->currency_code;
+            $deposit->charge = 0;
+            $deposit->rate = $w->currency->rate;
+            $deposit->final_amount = $v->amount;
+            $deposit->btc_amount = 0;
+            $deposit->btc_wallet = "";
+            $deposit->trx = getTrx();
+            $deposit->status = 1;
+            $deposit->save();
+
+            $w->balance += $v->amount;
+            $w->save();
+
+            $trx = new Transaction();
+            $trx->user_id = $userId;
+            $trx->user_type = 'USER';
+            $trx->wallet_id = $w->id;
+            $trx->currency_id = $w->currency_id;
+            $trx->before_charge = $v->amount;
+            $trx->amount = $v->amount;
+            $trx->post_balance = $w->balance;
+            $trx->charge =  0;
+            $trx->charge_type = '+';
+            $trx->trx_type = '+';
+            $trx->remark = 'redeem_voucher';
+            $trx->details = 'Redeemed Voucher ';
+            $trx->trx = $deposit->trx;
+            $trx->save();
+
+            $depositRef = $deposit;
+        });
+
+        if ($alreadyUsed) {
+            $notify[] = ['error', 'Invalid voucher code or This is one of your voucher'];
+            return back()->withNotify($notify);
+        }
+
+        $notify[] = ['success', getAmount($voucher->amount) . ' ' . $depositRef->method_currency . ' has been added to your wallet'];
         return back()->withNotify($notify);
     }
 
