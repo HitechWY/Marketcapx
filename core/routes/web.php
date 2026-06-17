@@ -2,12 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/clear', function(){
-    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
-});
+// SECURITY (Phase 1): removed public unauthenticated GET /clear route that ran
+// Artisan optimize:clear with no auth (cache-wipe / DoS vector). Use artisan CLI instead.
 
-
-Route::get('cron', 'CronController@cron')->name('cron');
+// SECURITY (Phase 1B): /cron guarded by a configurable shared-secret token
+// (App\Http\Middleware\VerifyCronToken). Enforced when CRON_SECRET is set;
+// backward-compatible (open + logged) until then.
+Route::get('cron', 'CronController@cron')->middleware(\App\Http\Middleware\VerifyCronToken::class)->name('cron');
 
 // User Support Ticket
 Route::controller('TicketController')->prefix('ticket')->name('ticket.')->group(function () {
@@ -20,7 +21,7 @@ Route::controller('TicketController')->prefix('ticket')->name('ticket.')->group(
     Route::get('download/{attachment_id}', 'ticketDownload')->name('download');
 });
 
-Route::controller('OtpController')->group(function () {
+Route::controller('OtpController')->middleware('throttle:otp')->group(function () {
     Route::get('otp-verification', 'otpVerification')->name('verify.otp');
     Route::get('otp-resend', 'otpResend')->name('verify.otp.resend');
     Route::post('otp-verify', 'otpVerify')->name('verify.otp.submit');

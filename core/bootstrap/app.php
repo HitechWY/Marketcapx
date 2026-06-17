@@ -42,7 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->middleware(['api', 'maintenance'])
                     ->group(base_path('routes/api/merchant.php'));
 
-                Route::middleware(['web'])
+                Route::middleware(['web', \App\Http\Middleware\AdminAuditLog::class])
                     ->namespace('Admin')
                     ->prefix('admin')
                     ->name('admin.')

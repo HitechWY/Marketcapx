@@ -61,19 +61,40 @@ class ProcessController extends Controller
 
     public function ipn(Request $request)
     {
-        $track = $request->invoice_id;
-        $value_in_btc = $request->value / 100000000;
-
+        $track   = $request->invoice_id;
         $deposit = Deposit::where('trx', $track)->orderBy('id', 'DESC')->first();
 
-        foreach ($_GET as $key => $value) {
+        // Reject unknown or already-processed deposits without persisting anything.
+        if (!$deposit || $deposit->status != Status::PAYMENT_INITIATE) {
+            abort(404);
+        }
+
+        // SECURITY (Phase 2): verify authenticity against the gateway's CONFIGURED
+        // secret (previously a hardcoded constant). Fail closed if none is configured.
+        $blockchainAcc    = json_decode($deposit->gatewayCurrency()->gateway_parameter);
+        $configuredSecret = isset($blockchainAcc->secret) ? (string) $blockchainAcc->secret : '';
+        $providedSecret   = (string) $request->input('secret', '');
+
+        $valueInBtc = ((float) $request->input('value', 0)) / 100000000;
+
+        $authentic = $configuredSecret !== ''
+            && hash_equals($configuredSecret, $providedSecret)
+            && $request->address == $deposit->btc_wallet
+            && $deposit->btc_amount == $valueInBtc
+            && $request->confirmations > 2;
+
+        if (!$authentic) {
+            abort(403);
+        }
+
+        // Authenticity confirmed — record the (now-trusted) callback details, then credit.
+        $details = [];
+        foreach ($request->query() as $key => $value) {
             $details[$key] = $value;
         }
         $deposit->detail = $details;
         $deposit->save();
 
-        if ($deposit->btc_amount == $value_in_btc && $request->address == $deposit->btc_wallet && $request->secret == "MySecret" && $request->confirmations > 2 && $deposit->status == Status::PAYMENT_INITIATE) {
-            PaymentController::userDataUpdate($deposit);
-        }
+        PaymentController::userDataUpdate($deposit);
     }
 }

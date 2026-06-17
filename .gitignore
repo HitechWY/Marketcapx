@@ -33,6 +33,7 @@ core/storage/framework/sessions/*
 core/storage/framework/views/*
 core/storage/app/public/*
 core/bootstrap/cache/*
+core/temp/*
 *.tmp
 .phpunit.result.cache
 core/.phpunit.cache
