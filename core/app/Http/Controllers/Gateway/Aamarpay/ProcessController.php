@@ -71,10 +71,12 @@ class ProcessController extends Controller
             $guard = $deposit->user_type == 'USER' ? null : strtolower($deposit->user_type);
             auth($guard)->loginUsingId($deposit->user_id);
             $credential      = json_decode($deposit->gatewayCurrency()->gateway_parameter);
-            $deposit->detail = $request->all();
-            $deposit->save();
 
             if (strtoupper($request->pay_status) == "SUCCESSFUL" && $credential->store_id == $request->store_id) {
+                // Persist the raw IPN payload only after the store_id/status check
+                // passes, so unverified request data is never written to the deposit.
+                $deposit->detail = $request->all();
+                $deposit->save();
                 PaymentController::userDataUpdate($deposit);
                 $notify[] = ['success', 'Transaction was successful'];
                 return redirect($deposit->success_url)->withNotify($notify);

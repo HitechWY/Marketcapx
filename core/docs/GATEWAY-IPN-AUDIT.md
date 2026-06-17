@@ -62,6 +62,31 @@ lock (Phase 3). Adding an explicit `&& status == PAYMENT_INITIATE` would be
 redundant. **No code change** — the flag was a false positive, like the
 CoinbaseCommerce/NowPaymentsHosted flags below.
 
+### Persist-after-verification reorder — 6 IPN handlers (deferred-money-flows wave)
+
+Recommendation §4.1 (persist `$deposit->detail` only after verification) was
+actioned for the six handlers that wrote the deposit detail before their
+authenticity/amount/status check completed. In each, the
+`$deposit->detail = ...; $deposit->save();` pair was moved **inside** the
+verified branch, immediately before `PaymentController::userDataUpdate()`. No
+credit logic, signature/HMAC check, amount/currency/status guard, redirect, or
+API response changed — only the position of the detail write. The credit was
+already gated by `status == PAYMENT_INITIATE`, so this is a hygiene fix (stop
+recording unverified/failed-payment payloads), not a closed exploit.
+
+| Gateway | File:line (before) | Gate the detail-write now sits behind |
+| ------- | ------------------ | ------------------------------------- |
+| Aamarpay | `Aamarpay/ProcessController.php:74` | `pay_status == SUCCESSFUL && store_id` match |
+| Instamojo | `Instamojo/ProcessController.php:72` | HMAC-SHA1 (`mac`) + `status == Credit` + `PAYMENT_INITIATE` |
+| Paypal | `Paypal/ProcessController.php:62` | `mc_gross` == amount + `PAYMENT_INITIATE` (inside `VERIFIED`) |
+| Paystack | `Paystack/ProcessController.php:62` | verified-API `status == success` + amount/currency + `PAYMENT_INITIATE` |
+| Razorpay | `Razorpay/ProcessController.php:86` | HMAC-SHA256 signature + `PAYMENT_INITIATE` |
+| Flutterwave | `Flutterwave/ProcessController.php:72` | verified-API `status == successful` + chargecode/amount/currency + `PAYMENT_INITIATE` |
+
+All six pass `php -l`. Not unit-testable without a live gateway/sandbox (per the
+no-real-gateway rule), so the change relies on code review; the reorder is a
+strict subset of the original behavior on the success path.
+
 ## 2. The "good" verification pattern (reference)
 
 Strong handlers in this codebase follow: **verify authenticity → check
@@ -88,11 +113,10 @@ These are real design considerations but carry integration-breakage risk and
 cannot be validated without a seeded test DB or gateway sandbox, so they are
 documented rather than blind-changed (per Phase 13 guidance):
 
-1. **Persist gateway `detail` only after verification.** Some redirect/return
-   handlers write `$deposit->detail` before the authenticity check completes.
-   Persisting unverified detail is low-impact (no credit happens without the
-   status guard) but should be moved after verification for hygiene. Confirm
-   per controller — do not assume from a scan.
+1. **Persist gateway `detail` only after verification.** — **DONE** for the six
+   handlers that did this (Aamarpay, Instamojo, Paypal, Paystack, Razorpay,
+   Flutterwave); see §1 "Persist-after-verification reorder". Any newly added
+   gateway should follow the same pattern.
 2. **Prefer signature/HMAC or server-to-server re-query over trusting redirect
    params** for gateways that currently rely only on returned status fields
    (e.g. Aamarpay loads a signature key but does not use it). Adding a real

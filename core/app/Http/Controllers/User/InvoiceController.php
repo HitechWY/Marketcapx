@@ -12,6 +12,7 @@ use App\Models\TransactionCharge;
 use App\Models\UserAction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller
 {
@@ -242,52 +243,120 @@ class InvoiceController extends Controller
             return to_route('user.home')->withNotify($notify);
         }
 
-        $userWallet->balance -= $invoice->total_amount;
-        $userWallet->save();
-
-        $trx                    = getTrx();
-        $userTrx                = new Transaction();
-        $userTrx->user_id       = $user->id;
-        $userTrx->user_type     = $invoice->user_type;
-        $userTrx->wallet_id     = $userWallet->id;
-        $userTrx->currency_id   = $invoice->currency_id;
-        $userTrx->before_charge = $invoice->total_amount;
-        $userTrx->amount        = $invoice->total_amount;
-        $userTrx->post_balance  = $userWallet->balance;
-        $userTrx->charge        = 0;
-        $userTrx->charge_type   = '+';
-        $userTrx->trx_type      = '-';
-        $userTrx->remark        = 'invoice_payment';
-        $userTrx->details       = "Invoice payment successful to";
-        $userTrx->receiver_id   = $invoice->user_id;
-        $userTrx->receiver_type = "USER";
-        $userTrx->trx           = $trx;
-        $userTrx->save();
-
         $rcvWallet = Wallet::where('user_type', $invoice->user_type)->where('currency_id', $invoice->currency_id)->where('user_id', $invoice->user_id)->first();
-        $rcvWallet->balance += $invoice->get_amount;
-        $rcvWallet->save();
+        if (!$rcvWallet) {
+            $notify[] = ['error', 'Receiver wallet not found'];
+            return to_route('user.home')->withNotify($notify);
+        }
 
-        $rcvTrx                = new Transaction();
-        $rcvTrx->user_id       = $invoice->user_id;
-        $rcvTrx->user_type     = $invoice->user_type;
-        $rcvTrx->wallet_id     = $rcvWallet->id;
-        $rcvTrx->currency_id   = $invoice->currency_id;
-        $rcvTrx->before_charge = $invoice->total_amount;
-        $rcvTrx->amount        = $invoice->get_amount;
-        $rcvTrx->charge        = $invoice->charge;
-        $rcvTrx->post_balance  = $rcvWallet->balance;
-        $rcvTrx->remark        = 'invoice_payment';
-        $rcvTrx->charge_type   = '-';
-        $rcvTrx->trx_type      = '+';
-        $rcvTrx->details       = 'Got payment of invoice from';
-        $rcvTrx->receiver_id   = $user->id;
-        $rcvTrx->receiver_type = "USER";
-        $rcvTrx->trx           = $userTrx->trx;
-        $rcvTrx->save();
+        // ATOMICITY + IDEMPOTENCY (deferred money-flow wave; mirrors the Phase 5
+        // payment fix): the only guard was the invoice pay_status read outside any
+        // lock, so a refresh/replay or concurrent confirm could double-settle.
+        // Lock the invoice row and re-check pay_status==0 inside the tx, lock both
+        // wallets (id-ascending) and re-check the payer balance, then debit/credit,
+        // write both ledger rows, flip pay_status, and consume the one-shot
+        // UserAction. Every amount/charge/ledger field is unchanged.
+        $payerId         = $user->id;
+        $actionId        = session('action_id');
+        $invoiceId       = $invoice->id;
+        $alreadyPaid     = false;
+        $insufficient    = false;
+        $userTrxRef      = null;
+        $payerBalance    = null;
+        $rcvBalance      = null;
 
-        $invoice->pay_status = 1;
-        $invoice->save();
+        DB::transaction(function () use (
+            $userWallet, $rcvWallet, $payerId, $actionId, $invoiceId,
+            &$alreadyPaid, &$insufficient, &$userTrxRef, &$payerBalance, &$rcvBalance
+        ) {
+            $action = UserAction::where('id', $actionId)->lockForUpdate()->first();
+            if (!$action) {
+                $alreadyPaid = true;
+                return; // replay -> idempotent no-op
+            }
+
+            $lockedInvoice = Invoice::where('id', $invoiceId)->where('pay_status', 0)->lockForUpdate()->first();
+            if (!$lockedInvoice) {
+                $alreadyPaid = true;
+                return; // already settled by a concurrent request
+            }
+
+            $ids = array_unique([$userWallet->id, $rcvWallet->id]);
+            sort($ids);
+            $locked = [];
+            foreach ($ids as $id) {
+                $locked[$id] = Wallet::where('id', $id)->lockForUpdate()->first();
+            }
+            $payerWallet = $locked[$userWallet->id];
+            $rcvWallet   = $locked[$rcvWallet->id];
+
+            if ($lockedInvoice->total_amount > $payerWallet->balance) {
+                $insufficient = true;
+                return;
+            }
+
+            $payerWallet->balance -= $lockedInvoice->total_amount;
+            $payerWallet->save();
+
+            $trx                    = getTrx();
+            $userTrx                = new Transaction();
+            $userTrx->user_id       = $payerId;
+            $userTrx->user_type     = $lockedInvoice->user_type;
+            $userTrx->wallet_id     = $payerWallet->id;
+            $userTrx->currency_id   = $lockedInvoice->currency_id;
+            $userTrx->before_charge = $lockedInvoice->total_amount;
+            $userTrx->amount        = $lockedInvoice->total_amount;
+            $userTrx->post_balance  = $payerWallet->balance;
+            $userTrx->charge        = 0;
+            $userTrx->charge_type   = '+';
+            $userTrx->trx_type      = '-';
+            $userTrx->remark        = 'invoice_payment';
+            $userTrx->details       = "Invoice payment successful to";
+            $userTrx->receiver_id   = $lockedInvoice->user_id;
+            $userTrx->receiver_type = "USER";
+            $userTrx->trx           = $trx;
+            $userTrx->save();
+
+            $rcvWallet->balance += $lockedInvoice->get_amount;
+            $rcvWallet->save();
+
+            $rcvTrx                = new Transaction();
+            $rcvTrx->user_id       = $lockedInvoice->user_id;
+            $rcvTrx->user_type     = $lockedInvoice->user_type;
+            $rcvTrx->wallet_id     = $rcvWallet->id;
+            $rcvTrx->currency_id   = $lockedInvoice->currency_id;
+            $rcvTrx->before_charge = $lockedInvoice->total_amount;
+            $rcvTrx->amount        = $lockedInvoice->get_amount;
+            $rcvTrx->charge        = $lockedInvoice->charge;
+            $rcvTrx->post_balance  = $rcvWallet->balance;
+            $rcvTrx->remark        = 'invoice_payment';
+            $rcvTrx->charge_type   = '-';
+            $rcvTrx->trx_type      = '+';
+            $rcvTrx->details       = 'Got payment of invoice from';
+            $rcvTrx->receiver_id   = $payerId;
+            $rcvTrx->receiver_type = "USER";
+            $rcvTrx->trx           = $userTrx->trx;
+            $rcvTrx->save();
+
+            $lockedInvoice->pay_status = 1;
+            $lockedInvoice->save();
+
+            $action->delete(); // one-shot: prevent replay
+
+            $userTrxRef   = $userTrx;
+            $payerBalance = $payerWallet->balance;
+            $rcvBalance   = $rcvWallet->balance;
+        });
+
+        if ($insufficient) {
+            $notify[] = ['error', 'Sorry! Insufficient balance'];
+            return to_route('user.home')->withNotify($notify);
+        }
+
+        if ($alreadyPaid || !$userTrxRef) {
+            $notify[] = ['error', 'Sorry! Unable to process'];
+            return to_route('user.home')->withNotify($notify);
+        }
 
         notify($rcvWallet->user, 'GET_INVOICE_PAYMENT', [
             'total_amount'  => showAmount($invoice->total_amount, $invoice->currency, currencyFormat: false),
@@ -296,8 +365,8 @@ class InvoiceController extends Controller
             'currency_code' => $invoice->currency->currency_code,
             'invoice_id'    => $invoice->invoice_num,
             'from_user'     => $user->username,
-            'trx'           => $userTrx->trx,
-            'post_balance'  => showAmount($rcvWallet->balance, $invoice->currency, currencyFormat: false),
+            'trx'           => $userTrxRef->trx,
+            'post_balance'  => showAmount($rcvBalance, $invoice->currency, currencyFormat: false),
             'time'          => showDateTime($invoice->created_at, 'd/M/Y @h:i a'),
         ]);
 
@@ -307,8 +376,8 @@ class InvoiceController extends Controller
             'invoice_id'    => $invoice->invoice_num,
             'time'          => showDateTime($invoice->created_at, 'd/M/Y @h:i a'),
             'to_user'       => $rcvWallet->user->username,
-            'trx'           => $userTrx->trx,
-            'post_balance'  => showAmount($userWallet->balance, $invoice->currency, currencyFormat: false),
+            'trx'           => $userTrxRef->trx,
+            'post_balance'  => showAmount($payerBalance, $invoice->currency, currencyFormat: false),
         ]);
 
         $notify[] = ['success', 'Invoice payment successfully'];

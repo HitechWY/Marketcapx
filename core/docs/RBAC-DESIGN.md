@@ -38,6 +38,8 @@ maintenance), `users` (status, KYC approve/reject), `content` (pages/blog/etc.).
 
 ## Rollout (safe order)
 1. Land migration drafts (reviewed, not run) under `database/migrations-drafts/`.
+   **DONE** — `2026_01_01_000003_create_rbac_roles_permissions.php` (roles,
+   permissions, permission_role pivot, nullable `admins.role_id`). Not run.
 2. In a dev/test DB only: run them, seed `super-admin`, backfill `admins.role_id`.
 3. Add the `permission` middleware (allow-by-default until roles are seeded).
 4. Apply middleware to sensitive routes; verify on the disposable test DB.

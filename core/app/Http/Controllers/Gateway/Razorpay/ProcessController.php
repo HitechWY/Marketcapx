@@ -83,10 +83,11 @@ class ProcessController extends Controller
         }
 
         $sig = hash_hmac('sha256', $orderId . "|" . $request->razorpay_payment_id, $razorAcc->key_secret);
-        $deposit->detail = $request->all();
-        $deposit->save();
 
         if ($sig == $request->razorpay_signature && $deposit->status == Status::PAYMENT_INITIATE) {
+            // Persist the raw IPN payload only after the signature/status check passes.
+            $deposit->detail = $request->all();
+            $deposit->save();
             PaymentController::userDataUpdate($deposit);
             $notify[] = ['success', 'Transaction was successful'];
             return redirect($deposit->success_url)->withNotify($notify);
