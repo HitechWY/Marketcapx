@@ -13,6 +13,7 @@ use App\Models\GatewayCurrency;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -171,28 +172,23 @@ class PaymentController extends Controller
                 $userType = 'AGENT';
             }
 
-            $userWallet = Wallet::where('id', $deposit->wallet_id)->lockForUpdate()->first();
-            $userWallet->balance += $deposit->amount;
-            $userWallet->save();
-
             $methodName = $deposit->methodName();
 
-            $transaction          = new Transaction();
-            $transaction->user_id = $deposit->user_id;
-
-            $transaction->user_type     = $deposit->user_type;
-            $transaction->wallet_id     = $userWallet->id;
-            $transaction->currency_id   = $deposit->currency_id;
-            $transaction->before_charge = $deposit->amount;
-
-            $transaction->amount       = $deposit->amount;
-            $transaction->post_balance = $userWallet->balance;
-            $transaction->charge       = 0;
-            $transaction->trx_type     = '+';
-            $transaction->details      = 'Add money Via ' . $methodName;
-            $transaction->trx          = $deposit->trx;
-            $transaction->remark       = 'add_money';
-            $transaction->save();
+            // Phase 4: wallet credit + ledger insert via the central WalletService
+            // (runs inside this same locked transaction). Field values unchanged.
+            $result     = app(WalletService::class)->credit($deposit->wallet_id, $deposit->amount, [
+                'user_id'       => $deposit->user_id,
+                'user_type'     => $deposit->user_type,
+                'currency_id'   => $deposit->currency_id,
+                'before_charge' => $deposit->amount,
+                'amount'        => $deposit->amount,
+                'charge'        => 0,
+                'trx_type'      => '+',
+                'details'       => 'Add money Via ' . $methodName,
+                'trx'           => $deposit->trx,
+                'remark'        => 'add_money',
+            ]);
+            $userWallet = $result['wallet'];
 
             $credited = true;
         });
