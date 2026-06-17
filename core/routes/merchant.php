@@ -13,7 +13,7 @@ Route::name('merchant.')->group(function () {
         Route::middleware('merchant.guest')->group(function () {
             Route::controller('LoginController')->group(function () {
                 Route::get('/', 'showLoginForm')->name('login');
-                Route::post('/', 'login');
+                Route::post('/', 'login')->middleware('throttle:login');
                 Route::get('logout', 'logout')->middleware('merchant')->withoutMiddleware('merchant.guest')->name('logout');
             });
 

@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 Route::name('api.agent.')->group(function () {
 
     Route::namespace('Agent\Auth')->group(function () {
-        Route::post('login', 'LoginController@login');
+        Route::post('login', 'LoginController@login')->middleware('throttle:login');
         Route::post('register', 'RegisterController@register');
 
         Route::controller('ForgotPasswordController')->group(function () {

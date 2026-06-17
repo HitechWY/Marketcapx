@@ -6,7 +6,7 @@ Route::namespace('User\Auth')->name('user.')->middleware('guest')->group(functio
 
     Route::controller('LoginController')->group(function () {
         Route::get('/login', 'showLoginForm')->name('login');
-        Route::post('/login', 'login');
+        Route::post('/login', 'login')->middleware('throttle:login');
         Route::get('logout', 'logout')->middleware('auth')->withoutMiddleware('guest')->name('logout');
     });
 

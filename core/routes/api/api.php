@@ -37,7 +37,7 @@ Route::namespace('Api')->name('api.')->group(function () {
 
     Route::namespace('User\Auth')->group(function () {
         Route::controller('LoginController')->group(function () {
-            Route::post('login', 'login');
+            Route::post('login', 'login')->middleware('throttle:login');
             Route::post('check-token', 'checkToken');
             Route::post('social-login', 'socialLogin');
         });

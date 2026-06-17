@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 Route::name('api.merchant.')->group(function () {
 
     Route::namespace('Merchant\Auth')->group(function () {
-        Route::post('login', 'LoginController@login');
+        Route::post('login', 'LoginController@login')->middleware('throttle:login');
         Route::post('register', 'RegisterController@register');
 
         Route::controller('ForgotPasswordController')->group(function () {

@@ -13,7 +13,7 @@ Route::name('agent.')->group(function () {
         Route::middleware('agent.guest')->group(function () {
             Route::controller('LoginController')->group(function () {
                 Route::get('/', 'showLoginForm')->name('login');
-                Route::post('/', 'login');
+                Route::post('/', 'login')->middleware('throttle:login');
                 Route::get('logout', 'logout')->middleware('agent')->withoutMiddleware('agent.guest')->name('logout');
             });
 
