@@ -59,15 +59,16 @@ class ProcessController extends Controller
             if ($result) {
                 if ($result['data']) {
 
-                    $deposit->detail = $result['data'];
-                    $deposit->save();
-
                     if ($result['data']['status'] == 'success') {
 
                         $am = $result['data']['amount']/100;
                         $sam = round($deposit->final_amount, 2);
 
                         if ($am == $sam && $result['data']['currency'] == $deposit->method_currency  && $deposit->status == Status::PAYMENT_INITIATE) {
+                            // Persist the verified gateway response only after the
+                            // amount/currency/status check passes.
+                            $deposit->detail = $result['data'];
+                            $deposit->save();
                             PaymentController::userDataUpdate($deposit);
                             $notify[] = ['success', 'Payment captured successfully'];
                             return redirect($deposit->success_url)->withNotify($notify);

@@ -69,8 +69,6 @@ class ProcessController extends Controller
         $response = curl_exec($ch);
         curl_close($ch);
         $response = json_decode($response);
-        $deposit->detail = $response->data;
-        $deposit->save();
 
         if ($response->status == 'error') {
             $message = $response->message;
@@ -89,6 +87,10 @@ class ProcessController extends Controller
         }
 
         if ($response->data->status == "successful" && $response->data->chargecode == "00" && $deposit->final_amount == $response->data->amount && $deposit->method_currency == $response->data->currency && $deposit->status == Status::PAYMENT_INITIATE) {
+            // Persist the verified gateway response only after the success/amount/
+            // currency/status check passes.
+            $deposit->detail = $response->data;
+            $deposit->save();
             PaymentController::userDataUpdate($deposit);
 
             $message = 'Transaction was successful, Ref: ' . $track;

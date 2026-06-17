@@ -59,10 +59,11 @@ class ProcessController extends Controller
 
         if ($response == "VERIFIED") {
             $deposit = Deposit::where('trx', $_POST['custom'])->orderBy('id', 'DESC')->first();
-            $deposit->detail = $details;
-            $deposit->save();
 
             if ($_POST['mc_gross'] == round($deposit->final_amount, 2) && $deposit->status == Status::PAYMENT_INITIATE) {
+                // Persist the IPN detail only after the amount + status check passes.
+                $deposit->detail = $details;
+                $deposit->save();
                 PaymentController::userDataUpdate($deposit);
             }
         }

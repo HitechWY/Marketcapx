@@ -69,8 +69,6 @@ class ProcessController extends Controller
     {
         $deposit = Deposit::where('btc_wallet', $_POST['payment_request_id'])->orderBy('id', 'DESC')->first();
         $instaMojoAcc = json_decode($deposit->gatewayCurrency()->gateway_parameter);
-        $deposit->detail = $request->all();
-        $deposit->save();
         $imData = $_POST;
         $macSent = $imData['mac'];
         unset($imData['mac']);
@@ -78,6 +76,9 @@ class ProcessController extends Controller
         $mac = hash_hmac("sha1", implode("|", $imData), $instaMojoAcc->salt);
 
         if ($macSent == $mac && $imData['status'] == "Credit" && $deposit->status == Status::PAYMENT_INITIATE) {
+            // Persist the raw IPN payload only after the HMAC/status check passes.
+            $deposit->detail = $request->all();
+            $deposit->save();
             PaymentController::userDataUpdate($deposit);
         }
     }
