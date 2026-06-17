@@ -3,14 +3,33 @@
 Minimal test scaffold added during local hardening.
 
 ## Running
-The shipped `core/vendor/` is a production install (`--no-dev`), so PHPUnit is
-not present. To run these tests, first install dev dependencies:
+PHPUnit is now available (require-dev was restored when `composer.lock` was
+regenerated for the Laravel 13 stack — see `docs/DEPENDENCY-LOCK-RECOVERY.md`).
 
 ```bash
 cd core
-composer install            # restores require-dev (phpunit, mockery, ...)
-php artisan test            # or: vendor/bin/phpunit
+cp .env.testing.example .env.testing   # then set a throwaway APP_KEY + local DB
+APP_ENV=testing vendor/bin/phpunit     # run the suite
 ```
+
+Notes specific to this app:
+- **Run phpunit directly, not `php artisan test`.** `artisan` first boots the
+  framework in the *console* env (using `.env`), and `AppServiceProvider::boot()`
+  queries `module_settings` at boot — so `artisan test` crashes before tests run
+  if the `.env` DB is unreachable. `vendor/bin/phpunit` boots with
+  `APP_ENV=testing` and loads `.env.testing` instead.
+- This PHP build needs **ext-gmp** at runtime (a gateway SDK requires it). If it
+  is not enabled in `php.ini`, run with `php -d extension=gmp vendor/bin/phpunit`.
+- App boot needs a DB with at least the `module_settings` / `general_settings`
+  tables, so even the "DB-free" tests require the test DB connection below.
+
+### Disposable test DB (`marketcapx_test` — never `paytabz_DB`)
+The schema lives in the SQL dump, not in migrations. Seed a throwaway DB once:
+```bash
+mysql -h127.0.0.1 -uroot -e "DROP DATABASE IF EXISTS marketcapx_test; CREATE DATABASE marketcapx_test CHARACTER SET utf8mb4;"
+mysql -h127.0.0.1 -uroot marketcapx_test < ../paytabz_DB.sql   # dump has no USE/CREATE DATABASE; lands in marketcapx_test only
+```
+Point `.env.testing` at `marketcapx_test`. Never run this against `paytabz_DB`.
 
 ## Current tests (DB-free by design)
 - `Unit/VerifyCronTokenTest.php` — `/cron` token middleware (Phase 1B): allows when
