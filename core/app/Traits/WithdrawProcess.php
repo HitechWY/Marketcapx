@@ -13,6 +13,7 @@ use App\Models\Wallet;
 use App\Models\Withdrawal;
 use App\Models\WithdrawMethod;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 trait WithdrawProcess
 {
@@ -225,34 +226,83 @@ trait WithdrawProcess
             return to_route(strtolower($getGuard['type']) . '.withdraw')->withNotify($notify);
         }
 
-        $withdraw->status = 2;
-        $withdraw->save();
+        // ATOMICITY + IDEMPOTENCY (deferred money-flow wave; mirrors the Phase 5
+        // money-out fix): the only existing guard was the withdrawal's status==0,
+        // read outside any lock, so two concurrent submits could both debit the
+        // wallet. Lock the withdrawal row and re-check status==0 inside the tx,
+        // lock the wallet and re-check the balance, then flip the withdrawal to
+        // status 2, debit, write the ledger row + admin notification, and consume
+        // the one-shot UserAction. Every amount/charge/ledger field is unchanged.
+        $authId           = $getGuard['user']->id;
+        $username         = $getGuard['user']->username;
+        $actionId         = session('action_id');
+        $withdrawId       = $withdraw->id;
+        $alreadyProcessed = false;
+        $insufficient     = false;
+        $postBalance      = null;
 
-        $wallet->balance -= $withdraw->amount;
-        $wallet->save();
+        DB::transaction(function () use (
+            $withdraw, $wallet, $authId, $username, $actionId, $withdrawId,
+            &$alreadyProcessed, &$insufficient, &$postBalance
+        ) {
+            $lockedWithdraw = Withdrawal::where('id', $withdrawId)->where('status', 0)->lockForUpdate()->first();
+            if (!$lockedWithdraw) {
+                $alreadyProcessed = true;
+                return; // another request already submitted this withdrawal -> no-op
+            }
 
-        $transaction                = new Transaction();
-        $transaction->user_id       = $withdraw->user_id;
-        $transaction->user_type     = $withdraw->user_type;
-        $transaction->wallet_id     = $wallet->id;
-        $transaction->currency_id   = $withdraw->currency_id;
-        $transaction->before_charge = $withdraw->amount;
-        $transaction->amount        = $withdraw->amount;
-        $transaction->post_balance  = $wallet->balance;
-        $transaction->charge        = 0;
-        $transaction->charge_type   = '+';
-        $transaction->trx_type      = '-';
-        $transaction->remark        = 'withdraw';
-        $transaction->details       = 'Money withdrawal';
-        $transaction->trx           = $withdraw->trx;
-        $transaction->save();
+            $lockedWallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+            if ($lockedWithdraw->amount > $lockedWallet->balance) {
+                $insufficient = true;
+                return;
+            }
 
-        $adminNotification            = new AdminNotification();
-        $adminNotification->user_id   = $getGuard['user']->id;
-        $adminNotification->user_type = $withdraw->user_type;
-        $adminNotification->title     = 'New withdraw request from ' . $getGuard['user']->username;
-        $adminNotification->click_url = urlPath('admin.withdraw.data.details', $withdraw->id);
-        $adminNotification->save();
+            $lockedWithdraw->status = 2;
+            $lockedWithdraw->save();
+
+            $lockedWallet->balance -= $lockedWithdraw->amount;
+            $lockedWallet->save();
+
+            $transaction                = new Transaction();
+            $transaction->user_id       = $lockedWithdraw->user_id;
+            $transaction->user_type     = $lockedWithdraw->user_type;
+            $transaction->wallet_id     = $lockedWallet->id;
+            $transaction->currency_id   = $lockedWithdraw->currency_id;
+            $transaction->before_charge = $lockedWithdraw->amount;
+            $transaction->amount        = $lockedWithdraw->amount;
+            $transaction->post_balance  = $lockedWallet->balance;
+            $transaction->charge        = 0;
+            $transaction->charge_type   = '+';
+            $transaction->trx_type      = '-';
+            $transaction->remark        = 'withdraw';
+            $transaction->details       = 'Money withdrawal';
+            $transaction->trx           = $lockedWithdraw->trx;
+            $transaction->save();
+
+            $adminNotification            = new AdminNotification();
+            $adminNotification->user_id   = $authId;
+            $adminNotification->user_type = $lockedWithdraw->user_type;
+            $adminNotification->title     = 'New withdraw request from ' . $username;
+            $adminNotification->click_url = urlPath('admin.withdraw.data.details', $lockedWithdraw->id);
+            $adminNotification->save();
+
+            $action = UserAction::where('id', $actionId)->lockForUpdate()->first();
+            if ($action) {
+                $action->delete(); // one-shot: prevent replay
+            }
+
+            $postBalance = $lockedWallet->balance;
+        });
+
+        if ($insufficient) {
+            $notify[] = ['error', 'You do not have sufficient balance for withdraw.'];
+            return to_route(strtolower($getGuard['type']) . '.withdraw')->withNotify($notify);
+        }
+
+        if ($alreadyProcessed) {
+            $notify[] = ['error', 'Sorry! Unable to process'];
+            return to_route(strtolower($getGuard['type']) . '.withdraw')->withNotify($notify);
+        }
 
         $general = gs();
 
@@ -264,7 +314,7 @@ trait WithdrawProcess
             'charge'          => showAmount($withdraw->charge, $general->currency, currencyFormat:false),
             'currency'        => $wallet->currency->currency_code,
             'trx'             => $withdraw->trx,
-            'post_balance'    => showAmount($wallet->balance, $general->currency, currencyFormat:false),
+            'post_balance'    => showAmount($postBalance, $general->currency, currencyFormat:false),
         ]);
 
         $notify[] = ['success', 'Withdraw request sent successfully'];
