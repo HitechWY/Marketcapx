@@ -2,10 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/clear', function(){
-    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
-});
-
+// SECURITY (Phase 1): removed public unauthenticated GET /clear route that ran
+// Artisan optimize:clear with no auth (cache-wipe / DoS vector). Use artisan CLI instead.
 
 Route::get('cron', 'CronController@cron')->name('cron');
 
