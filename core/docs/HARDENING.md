@@ -4,17 +4,23 @@ Developer-facing notes from the local hardening pass on `work/autonomous-hardeni
 No secrets are included here. Detailed audit/evidence lives outside the repo.
 
 ## Local run (development)
-- Stack: **Laravel 11.47** / PHP 8.3. Framework lives in `core/`; web root is the project root.
+- Stack: **Laravel 13.3.0** / PHP 8.3 (confirmed from the installed `vendor/`). Framework lives in
+  `core/`; web root is the project root.
 - `php artisan serve` does NOT work (no `core/public`). Serve the project root with a PHP
   built-in server + a small router (kept outside the repo).
 - DB: MySQL/MariaDB; the schema lives in the bundled SQL dump (54 tables), not in migrations.
 
 ## Repo-health findings (action for maintainers)
-- **`composer.json` ↔ `composer.lock` mismatch.** `composer.json` declares Laravel ^13 / PHPUnit ^12,
-  but the lock + installed `vendor/` are **Laravel v11.47.0 / PHPUnit 10.5.60** (and several other
-  packages differ). Because of this, `composer install` aborts (lock does not satisfy json).
-  Resolve deliberately — either correct `composer.json` constraints to match the intended/locked
-  stack, or run a controlled `composer update` as a real upgrade project. Do not paper over it.
+- **Stale `composer.lock`.** The installed `vendor/` is **Laravel 13.3.0** and `composer.json`
+  correctly declares `^13.0` — these AGREE. The committed **`composer.lock` is stale**: it pins an
+  older **Laravel v11.47.0 / PHPUnit 10.5.60** stack that does NOT match the vendor/json. Because of
+  this, `composer install` either aborts or (if forced from the lock) **downgrades and breaks** the
+  app (Laravel 13 → 11 removes APIs the code uses, e.g. `Middleware::preventRequestForgery()`).
+  Resolve deliberately by regenerating the lock for the real stack: run a controlled
+  `composer update` (Laravel 13) in a dev environment with `ext-gmp` enabled, review the resulting
+  lock, and commit it. Do NOT install from the current stale lock. (Note: an earlier doc revision
+  in this branch mis-stated the stack as Laravel 11 — that was based on the stale lock; the vendor is
+  Laravel 13.3.0.)
 
 ## Cron endpoint (`GET /cron`)
 - Guarded by `App\Http\Middleware\VerifyCronToken` and **fail-closed**: if `CRON_SECRET` is unset,
@@ -34,8 +40,9 @@ No secrets are included here. Detailed audit/evidence lives outside the repo.
 
 ## Tests
 - A scaffold exists under `core/tests/` (DB-free unit/route tests + skipped DB-dependent stubs).
-- **Not yet runnable here**: PHPUnit is absent from the production `vendor/`, and the composer
-  mismatch above blocks `composer install`. After resolving the mismatch, run:
+- **Not yet runnable here**: PHPUnit is absent from the production `vendor/`, and the stale lock
+  blocks a clean dev install (installing from the lock downgrades to Laravel 11 and breaks boot).
+  After regenerating the lock for Laravel 13 (`composer update` with `ext-gmp`), run:
   `cd core && composer install && php artisan test` (use a disposable copy DB, never `paytabz_DB`).
 
 ## Payment gateway IPNs
