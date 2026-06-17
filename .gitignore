@@ -1,0 +1,63 @@
+# ===== Secrets / environment =====
+core/.env
+core/.env.*
+!core/.env.example
+.env
+*.env
+auth.json
+
+# ===== Database dumps / backups =====
+*.sql
+*.sql.gz
+*.dump
+*.bak
+paytabz_DB.sql
+
+# ===== Dependencies =====
+core/vendor/
+/vendor/
+core/node_modules/
+/node_modules/
+
+# ===== Build output =====
+core/public/build/
+core/public/hot
+public/build/
+public/hot
+
+# ===== Laravel runtime / generated files =====
+core/storage/*.key
+core/storage/logs/*
+core/storage/framework/cache/*
+core/storage/framework/sessions/*
+core/storage/framework/views/*
+core/storage/app/public/*
+core/bootstrap/cache/*
+*.tmp
+.phpunit.result.cache
+core/.phpunit.cache
+
+# Keep Laravel directory placeholder files
+!**/.gitignore
+
+# ===== User-generated uploads / PII-prone folders =====
+assets/images/user/*
+assets/images/agent/*
+assets/images/merchant/*
+assets/verify/*
+
+# Keep safe placeholders if present
+!assets/images/user/.gitignore
+!assets/images/agent/.gitignore
+!assets/images/merchant/.gitignore
+!assets/verify/.gitignore
+!assets/images/**/default.png
+
+# ===== IDE / OS / logs =====
+.idea/
+.vscode/
+.fleet/
+.DS_Store
+Thumbs.db
+npm-debug.log
+yarn-error.log
