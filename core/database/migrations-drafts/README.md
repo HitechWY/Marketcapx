@@ -36,3 +36,20 @@ pick them up automatically.
   break legitimate data. Idempotency at the DB layer needs a carefully scoped
   key (see phase3 / wallet-ledger design) and dedicated analysis first.
 - Foreign keys: require orphan cleanup on a copy before they can be added.
+
+## Foreign-key strategy (Phase H notes — no FK migration shipped yet)
+Adding FKs is constrained by the schema's **polymorphic ownership**: `wallets`,
+`transactions`, `deposits`, `withdrawals`, etc. carry `user_id` + `user_type`
+(`USER` | `AGENT` | `MERCHANT`), so `user_id` may reference `users`, `agents`, or
+`merchants` depending on the row. A single `user_id -> users.id` FK would be wrong
+and reject agent/merchant rows. Options (decide before drafting FK migrations):
+1. Leave owner columns FK-less (enforce in app/WalletService) — lowest risk.
+2. Split per-owner-type tables or add a polymorphic morph map — larger redesign.
+
+**Safe, non-polymorphic FK candidates** (still need orphan-check on a COPY first):
+- `wallets.currency_id`, `transactions.currency_id`, `deposits.currency_id`,
+  `withdrawals.currency_id` -> `currencies.id`
+- `gateway_currencies.method_id` -> `gateways.id`
+- `transactions.wallet_id` -> `wallets.id`
+Pre-flight each on a COPY: `SELECT ... WHERE child_id NOT IN (SELECT id FROM parent)`.
+No FK migration is included until these checks + an ownership decision are made.
