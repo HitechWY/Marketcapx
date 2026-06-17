@@ -12,6 +12,7 @@ use App\Models\Wallet;
 use App\Traits\ApiPaymentProcess;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -180,49 +181,105 @@ class GetPaymentController extends Controller
             $totalCharge = $cap;
         }
 
-        $payerWallet->balance -= $apiPayment->amount;
-        $payerWallet->save();
-
-        $payerTrx                = new Transaction();
-        $payerTrx->user_id       = $payer->id;
-        $payerTrx->user_type     = 'USER';
-        $payerTrx->wallet_id     = $payerWallet->id;
-        $payerTrx->currency_id   = $payerWallet->currency_id;
-        $payerTrx->amount        = $apiPayment->amount;
-        $payerTrx->post_balance  = $payerWallet->balance;
-        $payerTrx->charge        = 0;
-        $payerTrx->trx_type      = '-';
-        $payerTrx->remark        = 'make_payment';
-        $payerTrx->details       = 'Payment successful to';
-        $payerTrx->receiver_id   = $merchant->id;
-        $payerTrx->receiver_type = 'MERCHANT';
-        $payerTrx->trx           = $apiPayment->trx;
-        $payerTrx->save();
-
+        // ATOMICITY + IDEMPOTENCY (deferred money-flow wave; mirrors the Phase 5
+        // payment fix): getPaymentInfo() checks status outside any lock and the
+        // status flag was flipped AFTER crediting, so concurrent confirms could
+        // both debit. Lock the apiPayment row and re-check status==0 inside the tx,
+        // lock both wallets (id-ascending) and re-check the payer balance, then
+        // flip status BEFORE the wallet mutations and write both ledger rows. The
+        // outbound IPN curl + notify run after commit (no network I/O inside the
+        // tx). Every amount/charge/ledger field is unchanged.
         $transactedAmount = ($apiPayment->amount - $totalCharge);
-        $merchantWallet->balance += $transactedAmount;
-        $merchantWallet->save();
+        $apiPaymentId     = $apiPayment->id;
+        $alreadyProcessed = false;
+        $insufficient     = false;
+        $processed        = false;
+        $merchantBalance  = null;
 
-        $merchantTrx                = new Transaction();
-        $merchantTrx->user_id       = $merchant->id;
-        $merchantTrx->user_type     = 'MERCHANT';
-        $merchantTrx->wallet_id     = $merchantWallet->id;
-        $merchantTrx->currency_id   = $merchantWallet->currency_id;
-        $merchantTrx->before_charge = $apiPayment->amount;
-        $merchantTrx->amount        = $transactedAmount;
-        $merchantTrx->post_balance  = $merchantWallet->balance;
-        $merchantTrx->charge_type   = '-';
-        $merchantTrx->charge        = $totalCharge;
-        $merchantTrx->trx_type      = '+';
-        $merchantTrx->remark        = 'make_payment';
-        $merchantTrx->details       = 'Payment successful from';
-        $merchantTrx->receiver_id   = $payer->id;
-        $merchantTrx->receiver_type = 'USER';
-        $merchantTrx->trx           = $apiPayment->trx;
-        $merchantTrx->save();
+        DB::transaction(function () use (
+            $apiPayment, $apiPaymentId, $payer, $merchant, $payerWallet, $merchantWallet, $transactedAmount, $totalCharge,
+            &$alreadyProcessed, &$insufficient, &$processed, &$merchantBalance
+        ) {
+            $lockedPayment = $apiPayment->newQuery()->where('id', $apiPaymentId)->where('status', 0)->lockForUpdate()->first();
+            if (!$lockedPayment) {
+                $alreadyProcessed = true;
+                return; // concurrent confirm already settled this payment
+            }
+
+            $ids = array_unique([$payerWallet->id, $merchantWallet->id]);
+            sort($ids);
+            $locked = [];
+            foreach ($ids as $id) {
+                $locked[$id] = Wallet::where('id', $id)->lockForUpdate()->first();
+            }
+            $lockedPayerWallet    = $locked[$payerWallet->id];
+            $lockedMerchantWallet = $locked[$merchantWallet->id];
+
+            if ($lockedPayment->amount > $lockedPayerWallet->balance) {
+                $insufficient = true;
+                return;
+            }
+
+            $lockedPayment->status = 1;
+            $lockedPayment->save();
+
+            $lockedPayerWallet->balance -= $lockedPayment->amount;
+            $lockedPayerWallet->save();
+
+            $payerTrx                = new Transaction();
+            $payerTrx->user_id       = $payer->id;
+            $payerTrx->user_type     = 'USER';
+            $payerTrx->wallet_id     = $lockedPayerWallet->id;
+            $payerTrx->currency_id   = $lockedPayerWallet->currency_id;
+            $payerTrx->amount        = $lockedPayment->amount;
+            $payerTrx->post_balance  = $lockedPayerWallet->balance;
+            $payerTrx->charge        = 0;
+            $payerTrx->trx_type      = '-';
+            $payerTrx->remark        = 'make_payment';
+            $payerTrx->details       = 'Payment successful to';
+            $payerTrx->receiver_id   = $merchant->id;
+            $payerTrx->receiver_type = 'MERCHANT';
+            $payerTrx->trx           = $lockedPayment->trx;
+            $payerTrx->save();
+
+            $lockedMerchantWallet->balance += $transactedAmount;
+            $lockedMerchantWallet->save();
+
+            $merchantTrx                = new Transaction();
+            $merchantTrx->user_id       = $merchant->id;
+            $merchantTrx->user_type     = 'MERCHANT';
+            $merchantTrx->wallet_id     = $lockedMerchantWallet->id;
+            $merchantTrx->currency_id   = $lockedMerchantWallet->currency_id;
+            $merchantTrx->before_charge = $lockedPayment->amount;
+            $merchantTrx->amount        = $transactedAmount;
+            $merchantTrx->post_balance  = $lockedMerchantWallet->balance;
+            $merchantTrx->charge_type   = '-';
+            $merchantTrx->charge        = $totalCharge;
+            $merchantTrx->trx_type      = '+';
+            $merchantTrx->remark        = 'make_payment';
+            $merchantTrx->details       = 'Payment successful from';
+            $merchantTrx->receiver_id   = $payer->id;
+            $merchantTrx->receiver_type = 'USER';
+            $merchantTrx->trx           = $lockedPayment->trx;
+            $merchantTrx->save();
+
+            $processed       = true;
+            $merchantBalance = $lockedMerchantWallet->balance;
+        });
+
+        if ($insufficient) {
+            return $this->notify('insuf_balance');
+        }
+
+        if ($alreadyProcessed && !$processed) {
+            // payment already settled by a concurrent request -> idempotent success
+            return [
+                'error'        => 'no',
+                'redirect_url' => $apiPayment->success_url,
+            ];
+        }
 
         $apiPayment->status = 1;
-        $apiPayment->save();
 
         $customKey = $apiPayment->amount . $apiPayment->identifier;
 
@@ -252,7 +309,7 @@ class GetPaymentController extends Controller
             'charge'        => $totalCharge,
             'trx'           => $apiPayment->trx,
             'time'          => showDateTime($apiPayment->created_at, 'd M Y @ g:i a'),
-            'balance'       => showAmount($merchantWallet->balance, $apiPayment->curr, currencyFormat:false),
+            'balance'       => showAmount($merchantBalance, $apiPayment->curr, currencyFormat:false),
         ]);
 
         return [
