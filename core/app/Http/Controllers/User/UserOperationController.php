@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\UserAction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserOperationController extends Controller
 {
@@ -160,65 +161,118 @@ class UserOperationController extends Controller
             return to_route('user.transfer')->withNotify($notify)->withInput();
         }
 
-        $wallet->balance -= $details->totalAmount;
-        $wallet->save();
+        // ATOMICITY + IDEMPOTENCY (deferred money-flow wave; mirrors the Phase 5
+        // money-out/payment fixes): run the sender debit + receiver credit + both
+        // ledger rows in one transaction, lock both wallet rows (id-ascending) and
+        // re-check the sender balance under the lock, and delete the one-shot
+        // UserAction inside the tx so a refreshed/replayed done route cannot run
+        // twice. Every amount/charge/ledger field is unchanged.
+        $authId          = auth()->id();
+        $actionId        = session('action_id');
+        $insufficient    = false;
+        $senderTrxRef    = null;
+        $senderBalance   = null;
+        $receiverBalance = null;
 
-        $senderTrx                = new Transaction();
-        $senderTrx->user_id       = auth()->id();
-        $senderTrx->user_type     = 'USER';
-        $senderTrx->wallet_id     = $wallet->id;
-        $senderTrx->currency_id   = $wallet->currency_id;
-        $senderTrx->before_charge = $details->amount;
-        $senderTrx->amount        = $details->totalAmount;
-        $senderTrx->post_balance  = $wallet->balance;
-        $senderTrx->charge        = $details->totalCharge;
-        $senderTrx->charge_type   = '+';
-        $senderTrx->trx_type      = '-';
-        $senderTrx->remark        = 'transfer_money';
-        $senderTrx->details       = 'Transfer Money to';
-        $senderTrx->receiver_id   = $receiver->id;
-        $senderTrx->receiver_type = "USER";
-        $senderTrx->trx           = getTrx();
-        $senderTrx->save();
+        DB::transaction(function () use (
+            $details, $receiver, $wallet, $receiverWallet, $authId, $actionId,
+            &$insufficient, &$senderTrxRef, &$senderBalance, &$receiverBalance
+        ) {
+            $action = UserAction::where('id', $actionId)->lockForUpdate()->first();
+            if (!$action) {
+                return; // already processed -> idempotent no-op
+            }
 
-        $receiverWallet->balance += $details->amount;
-        $receiverWallet->save();
+            $ids = array_unique([$wallet->id, $receiverWallet->id]);
+            sort($ids);
+            $locked = [];
+            foreach ($ids as $id) {
+                $locked[$id] = Wallet::where('id', $id)->lockForUpdate()->first();
+            }
+            $senderWallet   = $locked[$wallet->id];
+            $receiverWallet = $locked[$receiverWallet->id];
 
-        $receiverTrx                = new Transaction();
-        $receiverTrx->user_id       = $receiver->id;
-        $receiverTrx->user_type     = 'USER';
-        $receiverTrx->wallet_id     = $receiverWallet->id;
-        $receiverTrx->currency_id   = $receiverWallet->currency_id;
-        $receiverTrx->before_charge = $details->amount;
-        $receiverTrx->amount        = $details->amount;
-        $receiverTrx->post_balance  = $receiverWallet->balance;
-        $receiverTrx->charge        = 0;
-        $receiverTrx->charge_type   = '+';
-        $receiverTrx->trx_type      = '+';
-        $receiverTrx->remark        = 'transfer_money';
-        $receiverTrx->details       = 'Received Money From';
-        $receiverTrx->receiver_id   = auth()->id();
-        $receiverTrx->receiver_type = "USER";
-        $receiverTrx->trx           = $senderTrx->trx;
-        $receiverTrx->save();
+            if ($details->totalAmount > $senderWallet->balance) {
+                $insufficient = true;
+                return;
+            }
+
+            $senderWallet->balance -= $details->totalAmount;
+            $senderWallet->save();
+
+            $senderTrx                = new Transaction();
+            $senderTrx->user_id       = $authId;
+            $senderTrx->user_type     = 'USER';
+            $senderTrx->wallet_id     = $senderWallet->id;
+            $senderTrx->currency_id   = $senderWallet->currency_id;
+            $senderTrx->before_charge = $details->amount;
+            $senderTrx->amount        = $details->totalAmount;
+            $senderTrx->post_balance  = $senderWallet->balance;
+            $senderTrx->charge        = $details->totalCharge;
+            $senderTrx->charge_type   = '+';
+            $senderTrx->trx_type      = '-';
+            $senderTrx->remark        = 'transfer_money';
+            $senderTrx->details       = 'Transfer Money to';
+            $senderTrx->receiver_id   = $receiver->id;
+            $senderTrx->receiver_type = "USER";
+            $senderTrx->trx           = getTrx();
+            $senderTrx->save();
+
+            $receiverWallet->balance += $details->amount;
+            $receiverWallet->save();
+
+            $receiverTrx                = new Transaction();
+            $receiverTrx->user_id       = $receiver->id;
+            $receiverTrx->user_type     = 'USER';
+            $receiverTrx->wallet_id     = $receiverWallet->id;
+            $receiverTrx->currency_id   = $receiverWallet->currency_id;
+            $receiverTrx->before_charge = $details->amount;
+            $receiverTrx->amount        = $details->amount;
+            $receiverTrx->post_balance  = $receiverWallet->balance;
+            $receiverTrx->charge        = 0;
+            $receiverTrx->charge_type   = '+';
+            $receiverTrx->trx_type      = '+';
+            $receiverTrx->remark        = 'transfer_money';
+            $receiverTrx->details       = 'Received Money From';
+            $receiverTrx->receiver_id   = $authId;
+            $receiverTrx->receiver_type = "USER";
+            $receiverTrx->trx           = $senderTrx->trx;
+            $receiverTrx->save();
+
+            $action->delete(); // one-shot: prevent replay
+
+            $senderTrxRef    = $senderTrx;
+            $senderBalance   = $senderWallet->balance;
+            $receiverBalance = $receiverWallet->balance;
+        });
+
+        if ($insufficient) {
+            $notify[] = ['error', 'Sorry! Insufficient balance in wallet'];
+            return to_route('user.transfer')->withNotify($notify)->withInput();
+        }
+
+        if (!$senderTrxRef) {
+            $notify[] = ['error', 'Sorry! Unable to process'];
+            return to_route('user.transfer')->withNotify($notify)->withInput();
+        }
 
         notify(auth()->user(), 'TRANSFER_MONEY', [
             'amount'        => showAmount($details->totalAmount, $wallet->currency, currencyFormat:false),
             'charge'        => showAmount($details->totalCharge, $wallet->currency, currencyFormat:false),
             'currency_code' => $wallet->currency->currency_code,
             'to_user'       => $receiver->fullname . ' ( ' . $receiver->username . ' )',
-            'trx'           => $senderTrx->trx,
-            'time'          => showDateTime($senderTrx->created_at, 'd/M/Y @h:i a'),
-            'balance'       => showAmount($wallet->balance, $wallet->currency, currencyFormat:false),
+            'trx'           => $senderTrxRef->trx,
+            'time'          => showDateTime($senderTrxRef->created_at, 'd/M/Y @h:i a'),
+            'balance'       => showAmount($senderBalance, $wallet->currency, currencyFormat:false),
         ]);
 
         notify($receiver, 'RECEIVED_MONEY', [
             'amount'        => showAmount($details->amount, $wallet->currency, currencyFormat:false),
             'currency_code' => $receiverWallet->currency->currency_code,
             'from_user'     => auth()->user()->fullname . ' ( ' . auth()->user()->username . ' )',
-            'trx'           => $senderTrx->trx,
-            'time'          => showDateTime($senderTrx->created_at, 'd/M/Y @h:i a'),
-            'balance'       => showAmount($receiverWallet->balance, $wallet->currency, currencyFormat:false),
+            'trx'           => $senderTrxRef->trx,
+            'time'          => showDateTime($senderTrxRef->created_at, 'd/M/Y @h:i a'),
+            'balance'       => showAmount($receiverBalance, $wallet->currency, currencyFormat:false),
         ]);
 
         $notify[] = ['success', 'Money transferred successfully'];
