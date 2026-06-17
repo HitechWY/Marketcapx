@@ -15,6 +15,7 @@ use App\Models\Wallet;
 use App\Models\Withdrawal;
 use App\Models\WithdrawMethod;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 trait Withdraw
@@ -374,37 +375,86 @@ trait Withdraw
             return responseError('validation_error', $notify);
         }
 
-        $withdraw->status = Status::PAYMENT_PENDING;
-        $withdraw->save();
+        // ATOMICITY + IDEMPOTENCY (deferred money-flow wave; mirrors the Phase 5
+        // money-out fix): the withdrawal status and the UserAction `used` flag were
+        // read/flipped outside any lock, so concurrent submits could double-debit.
+        // Lock the action (used==0) and the withdrawal row (status==0) inside the
+        // tx, lock the wallet + re-check balance, then flip the withdrawal status,
+        // mark the action used, debit, and write the ledger row + admin
+        // notification. Every amount/charge/ledger field is unchanged.
+        $username         = $user->username;
+        $withdrawId       = $withdraw->id;
+        $actionId         = $userAction->id;
+        $alreadyProcessed = false;
+        $insufficient     = false;
+        $postBalance      = null;
 
-        $userAction->used = Status::YES;
-        $userAction->save();
+        DB::transaction(function () use (
+            $withdraw, $wallet, $user, $username, $withdrawId, $actionId,
+            &$alreadyProcessed, &$insufficient, &$postBalance
+        ) {
+            $action = UserAction::where('id', $actionId)->where('used', Status::NO)->lockForUpdate()->first();
+            if (!$action) {
+                $alreadyProcessed = true;
+                return; // replay -> idempotent no-op
+            }
 
-        $wallet->balance -= $withdraw->amount;
-        $wallet->save();
+            $lockedWithdraw = Withdrawal::where('id', $withdrawId)->where('status', 0)->lockForUpdate()->first();
+            if (!$lockedWithdraw) {
+                $alreadyProcessed = true;
+                return; // another request already submitted this withdrawal
+            }
 
-        $transaction                = new Transaction();
-        $transaction->user_id       = $withdraw->user_id;
-        $transaction->user_type     = $withdraw->user_type;
-        $transaction->wallet_id     = $wallet->id;
-        $transaction->currency_id   = $withdraw->currency_id;
-        $transaction->before_charge = $withdraw->amount;
-        $transaction->amount        = $withdraw->amount;
-        $transaction->post_balance  = $wallet->balance;
-        $transaction->charge        = 0;
-        $transaction->charge_type   = '+';
-        $transaction->trx_type      = '-';
-        $transaction->remark        = 'withdraw';
-        $transaction->details       = 'Money withdrawal';
-        $transaction->trx           = $withdraw->trx;
-        $transaction->save();
+            $lockedWallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+            if ($lockedWithdraw->amount > $lockedWallet->balance) {
+                $insufficient = true;
+                return;
+            }
 
-        $adminNotification            = new AdminNotification();
-        $adminNotification->user_id   = $user->id;
-        $adminNotification->user_type = $withdraw->user_type;
-        $adminNotification->title     = 'New withdraw request from ' . $user->username;
-        $adminNotification->click_url = urlPath('admin.withdraw.data.details', $withdraw->id);
-        $adminNotification->save();
+            $lockedWithdraw->status = Status::PAYMENT_PENDING;
+            $lockedWithdraw->save();
+
+            $action->used = Status::YES;
+            $action->save();
+
+            $lockedWallet->balance -= $lockedWithdraw->amount;
+            $lockedWallet->save();
+
+            $transaction                = new Transaction();
+            $transaction->user_id       = $lockedWithdraw->user_id;
+            $transaction->user_type     = $lockedWithdraw->user_type;
+            $transaction->wallet_id     = $lockedWallet->id;
+            $transaction->currency_id   = $lockedWithdraw->currency_id;
+            $transaction->before_charge = $lockedWithdraw->amount;
+            $transaction->amount        = $lockedWithdraw->amount;
+            $transaction->post_balance  = $lockedWallet->balance;
+            $transaction->charge        = 0;
+            $transaction->charge_type   = '+';
+            $transaction->trx_type      = '-';
+            $transaction->remark        = 'withdraw';
+            $transaction->details       = 'Money withdrawal';
+            $transaction->trx           = $lockedWithdraw->trx;
+            $transaction->save();
+
+            $adminNotification            = new AdminNotification();
+            $adminNotification->user_id   = $user->id;
+            $adminNotification->user_type = $lockedWithdraw->user_type;
+            $adminNotification->title     = 'New withdraw request from ' . $username;
+            $adminNotification->click_url = urlPath('admin.withdraw.data.details', $lockedWithdraw->id);
+            $adminNotification->save();
+
+            $postBalance = $lockedWallet->balance;
+        });
+
+        if ($insufficient) {
+            $notify[] = 'You do not have sufficient balance for withdraw';
+            return responseError('validation_error', $notify);
+        }
+
+        if ($alreadyProcessed) {
+            $notify[] = 'Sorry! Unable to process';
+            return responseError('validation_error', $notify);
+        }
 
         $general = gs();
 
@@ -416,7 +466,7 @@ trait Withdraw
             'charge'          => showAmount($withdraw->charge, $general->currency, currencyFormat: false),
             'currency'        => $wallet->currency->currency_code,
             'trx'             => $withdraw->trx,
-            'post_balance'    => showAmount($wallet->balance, $general->currency, currencyFormat: false),
+            'post_balance'    => showAmount($postBalance, $general->currency, currencyFormat: false),
         ]);
 
         $notify[] = 'Withdraw request sent successfully';
