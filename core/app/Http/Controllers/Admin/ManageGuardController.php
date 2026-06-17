@@ -14,6 +14,7 @@ use App\Lib\UserNotificationSender;
 use App\Http\Controllers\Controller;
 use App\Models\NotificationTemplate;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ManageGuardController extends Controller
 {
@@ -291,52 +292,68 @@ class ManageGuardController extends Controller
 
         $amount = $request->amount;
         $trx    = getTrx();
+        $isAdd  = $request->act == 'add';
+        $type   = $this->type;
 
-        $transaction = new Transaction();
+        // ATOMICITY (Phase 5): apply the balance change + ledger insert inside one
+        // transaction with the wallet row locked, re-checking sufficient balance
+        // under the lock for subtractions. Fields/messages are unchanged.
+        $insufficient = false;
+        $postBalance  = null;
 
-        if ($request->act == 'add') {
-            $wallet->balance += $amount;
-
-            $transaction->trx_type = '+';
-            $transaction->remark   = 'balance_add';
-
-            $notifyTemplate = 'BAL_ADD';
-
-            $notify[] = ['success', $wallet->currency->currency_symbol . $amount . ' added successfully'];
-        } else {
-            if ($amount > $wallet->balance) {
-                $notify[] = ['error', $user->username . ' doesn\'t have sufficient balance.'];
-                return back()->withNotify($notify);
+        DB::transaction(function () use ($request, $user, $type, $isAdd, $amount, $trx, &$insufficient, &$postBalance) {
+            $wallet = Wallet::where('id', $request->wallet_id)->where('user_id', $user->id)->lockForUpdate()->first();
+            if (!$wallet) {
+                $insufficient = true; // treated as a no-op below (should not happen; checked above)
+                return;
             }
 
-            $wallet->balance -= $amount;
+            $transaction = new Transaction();
 
-            $transaction->trx_type = '-';
-            $transaction->remark   = 'balance_subtract';
+            if ($isAdd) {
+                $wallet->balance += $amount;
+                $transaction->trx_type = '+';
+                $transaction->remark   = 'balance_add';
+            } else {
+                if ($amount > $wallet->balance) {
+                    $insufficient = true;
+                    return;
+                }
+                $wallet->balance -= $amount;
+                $transaction->trx_type = '-';
+                $transaction->remark   = 'balance_subtract';
+            }
 
-            $notifyTemplate = 'BAL_SUB';
-            $notify[]       = ['success', $wallet->currency->currency_symbol . $amount . ' subtracted successfully'];
+            $wallet->save();
+
+            $transaction->user_id       = $user->id;
+            $transaction->user_type     = $type;
+            $transaction->wallet_id     = $wallet->id;
+            $transaction->currency_id   = $wallet->currency_id;
+            $transaction->before_charge = $amount;
+            $transaction->amount        = $amount;
+            $transaction->post_balance  = $wallet->balance;
+            $transaction->charge        = 0;
+            $transaction->trx           = $trx;
+            $transaction->details       = $request->remark;
+            $transaction->save();
+
+            $postBalance = $wallet->balance;
+        });
+
+        if ($insufficient) {
+            $notify[] = ['error', $user->username . ' doesn\'t have sufficient balance.'];
+            return back()->withNotify($notify);
         }
 
-        $wallet->save();
-
-        $transaction->user_id       = $user->id;
-        $transaction->user_type     = $this->type;
-        $transaction->wallet_id     = $wallet->id;
-        $transaction->currency_id   = $wallet->currency_id;
-        $transaction->before_charge = $amount;
-        $transaction->amount        = $amount;
-        $transaction->post_balance  = $wallet->balance;
-        $transaction->charge        = 0;
-        $transaction->trx           = $trx;
-        $transaction->details       = $request->remark;
-        $transaction->save();
+        $notifyTemplate = $isAdd ? 'BAL_ADD' : 'BAL_SUB';
+        $notify[]       = ['success', $wallet->currency->currency_symbol . $amount . ($isAdd ? ' added successfully' : ' subtracted successfully')];
 
         notify($user, $notifyTemplate, [
             'trx'             => $trx,
             'amount'          => showAmount($amount, $wallet->currency, currencyFormat: false),
             'remark'          => $request->remark,
-            'post_balance'    => showAmount($wallet->balance, $wallet->currency, currencyFormat: false),
+            'post_balance'    => showAmount($postBalance, $wallet->currency, currencyFormat: false),
             'wallet_currency' => $wallet->currency->currency_code,
         ]);
 
