@@ -2,6 +2,7 @@
 core/.env
 core/.env.*
 !core/.env.example
+!core/.env.testing.example
 .env
 *.env
 auth.json

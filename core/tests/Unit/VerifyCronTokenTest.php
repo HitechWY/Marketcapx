@@ -26,11 +26,15 @@ class VerifyCronTokenTest extends TestCase
         return is_string($response) ? $response : 'PASSED';
     }
 
-    public function test_allows_when_no_secret_configured(): void
+    public function test_blocks_when_no_secret_configured(): void
     {
+        // Fail-closed (Phase 1B): with no CRON_SECRET set, /cron must be rejected
+        // and cron work must never run. (Earlier behavior allowed it; the guard was
+        // hardened in 63be19f and this test now asserts the hardened contract.)
         config(['cron.secret' => null]);
 
-        $this->assertSame('PASSED', $this->runMiddleware(Request::create('/cron', 'GET')));
+        $this->expectException(HttpException::class);
+        $this->runMiddleware(Request::create('/cron', 'GET'));
     }
 
     public function test_blocks_when_secret_set_but_no_token(): void
