@@ -1,0 +1,326 @@
+/* =====================================================================
+   MarketCap X — Material auth & onboarding re-skin (M2)
+   ---------------------------------------------------------------------
+   AUTH / ONBOARDING PAGES ONLY. Loaded from layouts/frontend.blade.php,
+   route-gated to the user auth GET routes (user.login / user.register /
+   user.password.request / user.password.reset / user.password.code.verify),
+   so every other page on this shared layout is untouched. Loads AFTER
+   public-redesign.css (same @stack('style')), and material-tokens.css +
+   material-components.css already load globally from app.blade.php — so the
+   --md-sys-* roles and the [data-md-theme] light/dark scheme are available.
+
+   Strategy (mirrors the verified M1 approach):
+     1. Re-point the premium-black --pb-* tokens at Material 3 --md-sys-*
+        roles. public-redesign.css drives the whole auth surface through
+        --pb-*, so this single alias re-skins the page onto Material AND makes
+        the persisted light/dark scheme apply (auth has no toggle button of its
+        own — it follows the scheme the visitor set on the marketing pages).
+     2. Add auth-specific Material chrome: the account card surface/elevation/
+        shape, the split hero panel, fields, buttons, the account-type chips,
+        the secure-password popup and the "exists" modal.
+
+   PRESENTATION ONLY. No markup, form action/method, input name, hidden field,
+   CSRF, captcha, validation, route or backend behaviour is touched here.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Re-alias the premium-black tokens onto Material roles (identical to
+   the M1 block). Loads after public-redesign.css so this :root wins; every
+   existing --pb-* consumer on the auth page now follows Material light/dark.
+   --------------------------------------------------------------------- */
+:root {
+    --pb-bg: var(--md-sys-color-background);
+    --pb-surface: var(--md-sys-color-surface-container);
+    --pb-card: var(--md-sys-color-surface-container-low);
+    --pb-card-2: var(--md-sys-color-surface-container-high);
+    --pb-border: var(--md-sys-color-outline-variant);
+    --pb-border-strong: var(--md-sys-color-outline);
+    --pb-text: var(--md-sys-color-on-surface);
+    --pb-text-muted: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------------------------------------------------------------
+   1b. Breadcrumb on permanently-dark imagery keeps light text in BOTH
+   schemes (same exception M1 handles for marketing). The auth pages render
+   the .inner-hero breadcrumb, whose image + dark overlay stay dark in light
+   mode too, so its text must not flip to the dark on-surface colour. There is
+   no lower-specificity hook than public-redesign.css's :is() rule, so the
+   override needs !important and is scoped to the breadcrumb only.
+   --------------------------------------------------------------------- */
+.inner-hero .page-title,
+.inner-hero .page-breadcrumb,
+.inner-hero .page-breadcrumb li,
+.inner-hero .page-breadcrumb a {
+    color: #fff !important;
+}
+
+/* ---------------------------------------------------------------------
+   2. Account card → Material surface. The card carries the form; give it a
+   real M3 container colour, shape and elevation in both schemes. (main.css
+   hard-codes a white background; this re-points it onto the surface role.)
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper {
+    background-color: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-xl);
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+/* The form column sits on a slightly higher surface so it reads as the
+   primary working area next to the imagery panel. */
+.main-wrapper .account-wrapper .right {
+    background-color: var(--md-sys-color-surface-container-low);
+}
+
+/* ---------------------------------------------------------------------
+   2b. Imagery panel (.left). Keep the configured background image but lay a
+   brand-tinted scrim over it so it reads as one Material surface with the
+   form column and stays legible against any admin-uploaded image.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .left {
+    position: relative;
+    background-size: cover;
+    background-position: center;
+}
+
+.main-wrapper .account-wrapper .left::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--md-sys-color-primary) 38%, transparent),
+        color-mix(in srgb, var(--md-sys-color-scrim) 28%, transparent)
+    );
+    pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------
+   2c. Heading + intro copy adopt the M3 headline/body typescale. Colour
+   comes from the surface role so it tracks light/dark.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .title {
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.01em;
+}
+
+.main-wrapper .account-wrapper .inner > .text-center > p {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* =====================================================================
+   M2 (C) — Login / Register form polish.
+   Field colours already follow Material via the --pb-* alias above
+   (public-redesign.css colours .form--control from --pb-*); here we add M3
+   shape, a focus ring, field labels, the submit button, the social-login
+   buttons and the account-type chips.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   3. Field labels → M3 label typescale.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .account-form label {
+    color: var(--md-sys-color-on-surface);
+    font-weight: 500;
+}
+
+/* ---------------------------------------------------------------------
+   4. Text fields → Material shape + a visible focus ring. Colour/border
+   already track Material via the --pb-* alias; this only adds shape and an
+   accessible focus indicator (a 2px primary ring + tinted border).
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .form--control {
+    border-radius: var(--md-sys-shape-corner-sm);
+}
+
+.main-wrapper .account-wrapper .form--control:focus,
+.main-wrapper .account-wrapper .form--control:focus-visible {
+    border-color: var(--md-sys-color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-sys-color-primary) 45%, transparent);
+    outline: none;
+}
+
+/* ---------------------------------------------------------------------
+   5. Submit button → Material treatment. The brand fill/colour comes from
+   color.php (!important), so we only add M3 shape, label typescale,
+   elevation and a press transition (same approach as the M1 public buttons).
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .account-form .btn--base {
+    border-radius: var(--md-sys-shape-corner-full);
+    font: var(--md-sys-typescale-label-large);
+    letter-spacing: 0.1px;
+    box-shadow: var(--md-sys-elevation-1);
+    transition: box-shadow var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                transform var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.main-wrapper .account-wrapper .account-form .btn--base:hover {
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.main-wrapper .account-wrapper .account-form .btn--base:active {
+    transform: translateY(1px);
+}
+
+/* ---------------------------------------------------------------------
+   6. Social-login buttons + "OR" divider. The partial ships an inline
+   light-theme style (white surface, grey text/borders) which looks wrong on
+   the Material card; override it with Material outlined-button styling. Scoped
+   under .account-wrapper (0,3,0) so it wins regardless of <style> order.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .social-login-btn {
+    background-color: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-full);
+    color: var(--md-sys-color-on-surface);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.main-wrapper .account-wrapper .social-login-btn:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, var(--md-sys-color-surface-container-high));
+    color: var(--md-sys-color-on-surface);
+}
+
+.main-wrapper .account-wrapper .auth-devide::after {
+    background: var(--md-sys-color-outline-variant);
+}
+
+.main-wrapper .account-wrapper .auth-devide span {
+    background: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------------------------------------------------------------
+   7. Account-type chips (register: Personal / Company). Turn the two radio
+   labels into Material selectable cards; the checked state uses the primary
+   container role. The radio inputs keep their position/behaviour from
+   main.css — only the visual surface is restyled.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .user-account-check label {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-md);
+    color: var(--md-sys-color-on-surface-variant);
+    transition: border-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.main-wrapper .account-wrapper .user-account-check .form-check-input:checked ~ label {
+    border-color: var(--md-sys-color-primary);
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+.main-wrapper .account-wrapper .user-account-check .form-check-input:checked ~ label i {
+    color: var(--md-sys-color-on-primary-container);
+}
+
+/* =====================================================================
+   M2 (D) — Password reset / onboarding polish + shared auth chrome.
+   Secure-password hint popup, the "agree to policy" checkbox, the auth
+   helper links, and the register "account exists" modal.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   8. Secure-password requirements popup (register + reset). Put it on a
+   Material surface so the requirement lines stay legible in both schemes.
+   Met/unmet line colours come from the theme's JS toggling — we only set the
+   container surface + the default (unmet) colour here.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .input-popup {
+    background-color: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-md);
+    box-shadow: var(--md-sys-elevation-2);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------------------------------------------------------------
+   9. "I agree with …" checkbox + policy links, and the helper links
+   (Forgot password / Registration here / Login here). Links adopt the
+   primary role so they read as actions in both schemes.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .form-check-label {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.main-wrapper .account-wrapper .form-check-input:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary);
+    outline-offset: 2px;
+}
+
+/* Auth-only accessible link colour. The global brand primary is NOT changed;
+   instead we derive a per-scheme link colour, scoped to the auth card, by
+   mixing the primary toward black (light) / white (dark) so the helper links
+   clear AA normal-text contrast (>=4.5:1) on the card in BOTH schemes while
+   staying recognisably "primary". Plain primary is only the fallback. */
+[data-md-theme="light"] .main-wrapper .account-wrapper {
+    --md-auth-link: color-mix(in srgb, var(--md-sys-color-primary) 68%, #000);
+}
+
+[data-md-theme="dark"] .main-wrapper .account-wrapper {
+    --md-auth-link: color-mix(in srgb, var(--md-sys-color-primary) 62%, #fff);
+}
+
+.main-wrapper .account-wrapper .account-form a,
+.main-wrapper .account-wrapper .inner > p a,
+.main-wrapper .account-wrapper .form-check-label a {
+    /* color.php paints these auth links `color:#<brand> !important` (selector
+       `.account-form .form-group a` / `.font-size--14px a`, specificity 0,2,1),
+       so the AA link colour must also be !important to win. Our selector is
+       0,3,1 — higher than color.php's — so among !important rules ours wins.
+       Justified override (same pattern the public phases use against color.php). */
+    color: var(--md-auth-link, var(--md-sys-color-primary)) !important;
+    border-radius: var(--md-sys-shape-corner-xs);
+    /* Always underline the helper links so they never rely on colour alone
+       (WCAG 1.4.1), on top of the AA-contrast link colour above. */
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.main-wrapper .account-wrapper .account-form a:hover,
+.main-wrapper .account-wrapper .inner > p a:hover,
+.main-wrapper .account-wrapper .form-check-label a:hover {
+    text-decoration: underline;
+    opacity: 0.85;
+}
+
+/* Keyboard focus is always visible on the auth links. */
+.main-wrapper .account-wrapper a:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   10. Register "you already have an account" modal → Material surface.
+   The brand button fills come from color.php; we only set the dialog
+   surface, shape and elevation.
+   --------------------------------------------------------------------- */
+#existModalCenter .modal-content {
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+#existModalCenter .modal-content h6 {
+    color: var(--md-sys-color-on-surface);
+}
+
+/* ---------------------------------------------------------------------
+   11. Respect reduced motion for every transition added in this file.
+   --------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .main-wrapper .account-wrapper .form--control,
+    .main-wrapper .account-wrapper .account-form .btn--base,
+    .main-wrapper .account-wrapper .social-login-btn,
+    .main-wrapper .account-wrapper .user-account-check label {
+        transition: none;
+    }
+
+    .main-wrapper .account-wrapper .account-form .btn--base:active {
+        transform: none;
+    }
+}

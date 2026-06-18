@@ -42,4 +42,13 @@
     @if (request()->routeIs('home', 'blogs', 'blog.details', 'contact', 'pages', 'policy.pages', 'cookie.policy'))
         <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-public.css') }}?v=1">
     @endif
+
+    {{-- Material M2: re-skin the AUTH / ONBOARDING pages only (login, register,
+         forgot/reset password, code verify). Route-gated so all other pages on
+         this shared layout stay unchanged. Loads AFTER public-redesign.css so
+         its --pb-* token aliases win, re-pointing the auth surface onto Material
+         light/dark. Presentation only — no form contract is touched. --}}
+    @if (request()->routeIs('user.login', 'user.register', 'user.password.request', 'user.password.reset', 'user.password.code.verify'))
+        <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-auth.css') }}?v=1">
+    @endif
 @endpush
