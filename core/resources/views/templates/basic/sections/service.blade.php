@@ -10,10 +10,7 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-6">
-                <div class="section-header text-center wow fadeInUp" data-wow-duration="0.3" data-wow-delay="0.3s">
-                    <h2 class="section-title text-white">{{ __(@$content->heading) }}</h2>
-                    <p class="mt-3 text-white">{{ __(@$content->subheading) }}</p>
-                </div>
+                <x-ui.section-heading class="wow fadeInUp" data-wow-duration="0.3" data-wow-delay="0.3s" light :heading="__(@$content->heading)" :subheading="__(@$content->subheading)" />
             </div>
         </div><!-- row end -->
         <div class="row gy-4">
