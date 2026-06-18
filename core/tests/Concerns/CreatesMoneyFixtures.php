@@ -4,6 +4,7 @@ namespace Tests\Concerns;
 
 use App\Constants\Status;
 use App\Models\Agent;
+use App\Models\ApiPayment;
 use App\Models\Conversation;
 use App\Models\Currency;
 use App\Models\Deposit;
@@ -248,6 +249,31 @@ trait CreatesMoneyFixtures
         $e->save();
 
         return $e;
+    }
+
+    /**
+     * Hosted (api_payments) checkout row for replay-safety tests. Defaults to an
+     * already-settled payment (status 1) so getPaymentInfo() returns its error
+     * array; pass status:0 for a live, confirmable payment.
+     */
+    protected function makeApiPayment(array $overrides = []): ApiPayment
+    {
+        $p = new ApiPayment();
+        $p->trx         = $overrides['trx'] ?? $this->uniq('TRX');
+        $p->merchant_id = $overrides['merchant_id'] ?? 0;
+        $p->payer_id    = $overrides['payer_id'] ?? 0;
+        $p->currency_id = $overrides['currency_id'] ?? 0;
+        $p->identifier  = $overrides['identifier'] ?? $this->uniq('ID');
+        $p->amount      = $overrides['amount'] ?? 0;
+        $p->ipn_url     = $overrides['ipn_url'] ?? 'https://merchant.test/ipn';
+        $p->cancel_url  = $overrides['cancel_url'] ?? 'https://merchant.test/cancel';
+        $p->success_url = $overrides['success_url'] ?? 'https://merchant.test/success';
+        $p->ver_code    = $overrides['ver_code'] ?? null;
+        $p->ver_code_at = $overrides['ver_code_at'] ?? null;
+        $p->status      = $overrides['status'] ?? 1; // 1 = already settled
+        $p->save();
+
+        return $p;
     }
 
     protected function makeConversation(Escrow $escrow, array $overrides = []): Conversation

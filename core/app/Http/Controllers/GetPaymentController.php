@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Lib\CurlRequest;
+use App\Models\ApiPayment;
 use App\Models\Merchant;
 use App\Models\Transaction;
 use App\Models\TransactionCharge;
@@ -72,7 +73,15 @@ class GetPaymentController extends Controller
             return $this->notify('kyc_pending');
         }
 
-        $apiPayment              = $this->getPaymentInfo();
+        $apiPayment = $this->getPaymentInfo();
+        // REPLAY SAFETY (B4): getPaymentInfo() returns an error array when the
+        // session payment is missing or already settled/cancelled (status 1/2).
+        // Without this guard the next line assigns a property on an array, which is
+        // a fatal Error on a replayed/expired checkout. Return the existing JSON
+        // error shape instead.
+        if (!$apiPayment instanceof ApiPayment) {
+            return $apiPayment;
+        }
         $apiPayment->ver_code    = verificationCode(6);
         $apiPayment->ver_code_at = Carbon::now();
         $apiPayment->payer_id    = $user->id;
@@ -91,6 +100,13 @@ class GetPaymentController extends Controller
 
         $pageTitle  = "Verify Payment";
         $apiPayment = $this->getPaymentInfo();
+        // REPLAY SAFETY (B4): this view both reads and saves the payment, so a
+        // settled/expired payment (error array) would fatally assign a property on
+        // an array. A 404 is the correct "this hosted payment is no longer valid"
+        // response instead of a 500.
+        if (!$apiPayment instanceof ApiPayment) {
+            abort(404);
+        }
 
         if ($this->checkValidCode($apiPayment, $apiPayment->ver_code, 2)) {
             $target_time = Carbon::parse($apiPayment->ver_code_at)->addMinutes(2)->timestamp;
@@ -133,6 +149,13 @@ class GetPaymentController extends Controller
         }
 
         $apiPayment = $this->getPaymentInfo();
+        // REPLAY SAFETY (B4): a settled/cancelled/expired payment yields an error
+        // array here. Returning it (JSON error shape) makes a double-confirm an
+        // explicit "invalid transaction" instead of dereferencing an array (which
+        // read null and produced a misleading "code mismatch").
+        if (!$apiPayment instanceof ApiPayment) {
+            return $apiPayment;
+        }
 
         if ($request->code != $apiPayment->ver_code) {
             return $this->notify('code_not_match');
