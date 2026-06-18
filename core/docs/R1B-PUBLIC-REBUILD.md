@@ -72,6 +72,33 @@ Only two public forms exist. No public search form exists.
 Freeze rule: action, method, input `name`s, hidden fields, CSRF, captcha, route names,
 validation behaviour and submit behaviour are never touched.
 
+## Slices delivered (B–E rebuilt, F verified)
+
+- **B** `040353e` header action buttons → `<x-ui.button>` (+ `.md-button--sm`,
+  `.md-button--danger`); breadcrumb → semantic `<nav aria-label>`.
+- **C** `b8a2644` new `<x-ui.feature-card>`; hero CTA + service + feature sections.
+- **D** `cb58e01` new `<x-ui.blog-card>`; why-choose-us, about CTA, homepage blog.
+- **E** `08ba805` blog list/detail, policy, contact info tiles; share icon buttons.
+
+New components: `x-ui.feature-card`, `x-ui.blog-card` (both emit `.md-card` inline
+so `$attributes` forwards onto a plain element — nesting `{{ $attributes->merge }}`
+on an `<x-ui.card>` tag breaks Blade compilation, learned in C).
+
+## Verification (final, on `08ba805`)
+
+- PHPUnit **42 passed / 1 skipped**; `route:list` **796**; full in-process smoke
+  (/ /contact /blogs /announces /user/login /user/register /admin = 200; dashboards
+  302 → login). `git diff --check` clean; forbidden-file scan = frontend-only
+  (16 files: CSS + Blade + this doc); `core/.env.local` untracked, never staged.
+- Rendered DOM: zero legacy `service-card`/`feaure-card`/`choose-card`/`blog-card`
+  classes remain; homepage 15 feature-cards + 3 blog-cards; /announces 6 blog-cards;
+  /contact 3 info tiles; contact form DOM still `[_token,name,email,subject,message]`.
+- Visual QA (Playwright, rendered HTML + plain asset server): **0px horizontal
+  overflow** on home/contact/announces at 1440 and 360; rebuilt cards fit; CSS
+  applied (feature-card padding, brand icon badge); reduced-motion guards on every
+  transition; brand-primary "read more" link is bold large-text (AA) with underline
+  affordance. Screenshots kept outside the repo.
+
 ## Per-slice gate
 
 `git status` clean · `git diff --check` · forbidden-file scan · `php -l` changed Blade ·
