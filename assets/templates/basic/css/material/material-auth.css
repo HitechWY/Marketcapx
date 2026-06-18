@@ -250,16 +250,31 @@
     outline-offset: 2px;
 }
 
+/* Auth-only accessible link colour. The global brand primary is NOT changed;
+   instead we derive a per-scheme link colour, scoped to the auth card, by
+   mixing the primary toward black (light) / white (dark) so the helper links
+   clear AA normal-text contrast (>=4.5:1) on the card in BOTH schemes while
+   staying recognisably "primary". Plain primary is only the fallback. */
+[data-md-theme="light"] .main-wrapper .account-wrapper {
+    --md-auth-link: color-mix(in srgb, var(--md-sys-color-primary) 68%, #000);
+}
+
+[data-md-theme="dark"] .main-wrapper .account-wrapper {
+    --md-auth-link: color-mix(in srgb, var(--md-sys-color-primary) 62%, #fff);
+}
+
 .main-wrapper .account-wrapper .account-form a,
 .main-wrapper .account-wrapper .inner > p a,
 .main-wrapper .account-wrapper .form-check-label a {
-    color: var(--md-sys-color-primary);
+    /* color.php paints these auth links `color:#<brand> !important` (selector
+       `.account-form .form-group a` / `.font-size--14px a`, specificity 0,2,1),
+       so the AA link colour must also be !important to win. Our selector is
+       0,3,1 — higher than color.php's — so among !important rules ours wins.
+       Justified override (same pattern the public phases use against color.php). */
+    color: var(--md-auth-link, var(--md-sys-color-primary)) !important;
     border-radius: var(--md-sys-shape-corner-xs);
-    /* Always underline the helper links: the brand-primary link colour sits at
-       ~3.7-4.0:1 on the card in both schemes (below AA 4.5 for normal text,
-       though it meets the 3:1 UI/large-text threshold). Keeping the underline
-       on at rest means the links never rely on colour alone (WCAG 1.4.1) — the
-       site's brand primary is intentionally kept unchanged for consistency. */
+    /* Always underline the helper links so they never rely on colour alone
+       (WCAG 1.4.1), on top of the AA-contrast link colour above. */
     text-decoration: underline;
     font-weight: 500;
 }
