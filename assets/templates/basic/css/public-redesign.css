@@ -256,10 +256,6 @@
    touched. Focus states replace the default outline with a clearly visible
    brand ring (better UX + accessibility). Scoped to public content.
    ===================================================================== */
-.main-wrapper .form--control {
-    transition: border-color var(--ds-transition-fast), box-shadow var(--ds-transition-fast);
-}
-
 .main-wrapper .form--control:focus,
 .main-wrapper .form--control:focus-visible {
     /* main.css sets the focus border-color with !important, so overriding it
@@ -295,8 +291,180 @@
     border-radius: var(--ds-radius-sm);
 }
 
+/* #####################################################################
+   PHASE 3 — Premium black modern public UI (public marketing only)
+   This stylesheet is linked ONLY from layouts/frontend.blade.php, so body/
+   global rules below apply to public pages only (never dashboards/admin/
+   checkout/auth). Loads after main.css → wins on source order (no !important).
+   #####################################################################
+
+   ----- Slice A — Theme foundation (dark surfaces + light text) ----- */
+:root {
+    /* Layered near-blacks */
+    --pb-bg: #0a0b0f;          /* page base            */
+    --pb-surface: #111422;     /* elevated section     */
+    --pb-card: #161a29;        /* raised card          */
+    --pb-card-2: #1b2133;      /* card hover / inputs  */
+    --pb-border: rgba(255, 255, 255, 0.08);
+    --pb-border-strong: rgba(255, 255, 255, 0.14);
+    /* Text on dark */
+    --pb-text: #e8eaf0;        /* primary light text   */
+    --pb-text-muted: #9aa3b2;  /* secondary / body     */
+    /* Brand glow from the live primary (color.php sets --ds-color-primary) */
+    --pb-glow: color-mix(in srgb, var(--ds-color-primary) 45%, transparent);
+    --pb-glow-soft: color-mix(in srgb, var(--ds-color-primary) 22%, transparent);
+}
+
+/* Public page base surface + default text */
+body {
+    background-color: var(--pb-bg);
+    color: var(--pb-text);
+}
+
+/* Deepen the theme's section background utilities */
+.section--bg {
+    background-color: var(--pb-surface);
+}
+
+.section--bg2 {
+    background-color: var(--pb-bg);
+}
+
+/* The about section uses Bootstrap's .bg-white utility, which is declared with
+   !important; overriding it on public pages (so it joins the dark theme)
+   therefore requires !important — no lower-specificity alternative exists. */
+.main-wrapper .bg-white {
+    background-color: var(--pb-bg) !important;
+}
+
+/* Light-by-default sections (about/testimonial/business/brands/overview) inherit
+   the dark body now; flip their headings/text to light. Brand-accent text
+   (.text--base) and explicit .text-white are preserved via :not() guards. */
+.main-wrapper :is(h1, h2, h3, h4, h5, h6):not(.text-white):not(.text--base),
+.main-wrapper .section-title:not(.text-white):not(.text--base),
+.main-wrapper .title:not(.text-white):not(.text--base) {
+    color: var(--pb-text);
+}
+
+.main-wrapper p:not(.text-white):not(.text--base),
+.main-wrapper .section-subtitle:not(.text--base),
+.main-wrapper li:not(.text-white):not(.text--base) {
+    color: var(--pb-text-muted);
+}
+
+/* Safety net so no light card surface remains between slices (refined in C/D).
+   Flip the two white cards to dark glass + readable text immediately. */
+.main-wrapper .choose-card,
+.main-wrapper .blog-card {
+    background-color: var(--pb-card);
+    border: 1px solid var(--pb-border);
+}
+
+.main-wrapper .choose-card :is(h1, h2, h3, h4, h5, h6, p, a, span, li):not(.text--base),
+.main-wrapper .blog-card :is(h1, h2, h3, h4, h5, h6, p, a, span):not(.text--base) {
+    color: var(--pb-text);
+}
+
+.main-wrapper .blog-card .blog-card__meta,
+.main-wrapper .blog-card .blog-card__meta * {
+    color: var(--pb-text-muted);
+}
+
+/* ----- Slice B — Hero + header premium treatment -----
+   Re-skin the EXISTING main.css `.hero::after` overlay (keeps its position/
+   inset/z-index:-1) from navy to a premium near-black gradient + a soft radial
+   brand glow, so the DB hero image reads as deep black with brand accent and
+   the white headline stays legible. */
+.hero::after {
+    background:
+        radial-gradient(120% 90% at 72% 18%, var(--pb-glow-soft) 0%, transparent 46%),
+        linear-gradient(180deg, rgba(10, 11, 15, 0.55) 0%, rgba(10, 11, 15, 0.88) 100%);
+}
+
+/* Primary hero CTA: resting brand glow + stronger glow on hover (the pill
+   radius + translateY lift come from the Phase 2 chrome rules). */
+.hero .btn--base.btn--custom {
+    box-shadow: 0 10px 30px var(--pb-glow-soft);
+}
+
+.hero .btn--base.btn--custom:hover {
+    box-shadow: 0 14px 38px var(--pb-glow);
+}
+
+/* Secondary hero action ("See How" video button): subtle ghost ring on dark. */
+.hero .video-btn {
+    transition: opacity var(--ds-transition-fast);
+}
+
+.hero .video-btn:hover {
+    opacity: 0.9;
+}
+
+/* ----- Slice C — Content section dark-glass cards -----
+   Give the service card the same dark-glass surface the Slice A safety net gave
+   choose/blog, and a unified brand-tinted hover for the three public CARD types.
+   (.feaure-card is intentionally left borderless — it is an icon+text feature
+   highlight with no internal padding, so a surface would look cramped.) */
+.main-wrapper .service-card {
+    background-color: var(--pb-card);
+    border: 1px solid var(--pb-border);
+    border-radius: var(--ds-radius-lg);
+}
+
+.main-wrapper .service-card:hover,
+.main-wrapper .choose-card:hover,
+.main-wrapper .blog-card:hover {
+    border-color: var(--pb-border-strong);
+    box-shadow: var(--ds-shadow-lg), 0 0 24px -6px var(--pb-glow-soft);
+}
+
+/* ----- Slice D — Social proof / blog / brands -----
+   Blog cards are already dark-glass (Slice A/C); the testimonial card is already
+   dark and reads well. The only fix needed: brand/partner logos are DB-driven
+   images of unknown colour and disappear on the dark background, so place each
+   in a clean light "logo chip" — guaranteed visible regardless of logo colour,
+   a standard premium "trusted by" treatment. (No transform on the .brand-slider
+   Slick container — only the slide item gets a surface.) */
+.main-wrapper .brand-item {
+    background-color: rgba(255, 255, 255, 0.92);
+    border-radius: var(--ds-radius-md);
+    padding: var(--ds-space-4) var(--ds-space-5);
+    box-sizing: border-box;
+    transition: background-color var(--ds-transition-fast);
+}
+
+.main-wrapper .brand-item:hover {
+    background-color: #ffffff;
+}
+
+/* ----- Slice E — Inner pages (breadcrumb + dark form inputs) -----
+   Re-skin the existing main.css `.inner-hero::before` breadcrumb overlay from
+   navy to a premium near-black gradient + soft brand glow (keeps position/
+   z-index), and darken public form inputs to match the theme. The contact
+   form's method/action/field names/IDs are NOT touched — styling only. */
+.inner-hero::before {
+    background:
+        radial-gradient(100% 130% at 82% 0%, var(--pb-glow-soft) 0%, transparent 52%),
+        linear-gradient(180deg, rgba(10, 11, 15, 0.90) 0%, rgba(10, 11, 15, 0.97) 100%);
+    opacity: 1;
+}
+
+.main-wrapper .form--control {
+    background-color: var(--pb-card-2);
+    border: 1px solid var(--pb-border);
+    color: var(--pb-text);
+    /* (transition consolidated here from the Phase 2 focus block) */
+    transition: border-color var(--ds-transition-fast), box-shadow var(--ds-transition-fast);
+}
+
+.main-wrapper .form--control::placeholder {
+    color: var(--pb-text-muted);
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
+    .main-wrapper .brand-item,
+    .hero .video-btn,
     .main-wrapper .form--control,
     .main-wrapper .page-breadcrumb a,
     .main-wrapper .blog-card,
