@@ -227,7 +227,14 @@ class FileManager
      */
     protected function getFileName()
     {
-        return uniqid() . time() . '.' . $this->file->getClientOriginalExtension();
+        // SECURITY (B5): uniqid() and time() are both time-derived and therefore
+        // guessable. KYC/verification documents (assets/verify) and other uploads
+        // are stored under these filenames inside web-served directories, so a
+        // guessed name could expose a private document. Append 128 bits of
+        // cryptographically-random entropy to NEW uploads. The result is still a
+        // flat "<token>.<ext>" name that callers persist to the DB verbatim, so
+        // existing files and every reader keep working unchanged.
+        return uniqid() . time() . bin2hex(random_bytes(16)) . '.' . $this->file->getClientOriginalExtension();
     }
 
     /**
