@@ -2,9 +2,12 @@
 
 namespace Tests\Concerns;
 
+use App\Constants\Status;
 use App\Models\Agent;
+use App\Models\Conversation;
 use App\Models\Currency;
 use App\Models\Deposit;
+use App\Models\Escrow;
 use App\Models\GatewayCurrency;
 use App\Models\Merchant;
 use App\Models\Admin;
@@ -221,6 +224,42 @@ trait CreatesMoneyFixtures
         $d->save();
 
         return $d;
+    }
+
+    /**
+     * Minimal escrow row for escrow-flow tests. Defaults to an accepted escrow
+     * fully funded (paid_amount == amount); pass overrides for status/amounts.
+     */
+    protected function makeEscrow(array $overrides = []): Escrow
+    {
+        $e = new Escrow();
+        $e->escrow_number = $this->uniq('ESC');
+        $e->buyer_id      = $overrides['buyer_id'] ?? 0;
+        $e->seller_id     = $overrides['seller_id'] ?? 0;
+        $e->creator_id    = $overrides['creator_id'] ?? ($overrides['buyer_id'] ?? 0);
+        $e->currency_id   = $overrides['currency_id'] ?? 0;
+        $e->amount        = $overrides['amount'] ?? 0;
+        $e->charge        = $overrides['charge'] ?? 0;
+        $e->buyer_charge  = $overrides['buyer_charge'] ?? 0;
+        $e->seller_charge = $overrides['seller_charge'] ?? 0;
+        $e->paid_amount   = $overrides['paid_amount'] ?? ($overrides['amount'] ?? 0);
+        $e->title         = $overrides['title'] ?? 'Test Escrow';
+        $e->status        = $overrides['status'] ?? Status::ESCROW_ACCEPTED;
+        $e->save();
+
+        return $e;
+    }
+
+    protected function makeConversation(Escrow $escrow, array $overrides = []): Conversation
+    {
+        $c            = new Conversation();
+        $c->escrow_id = $escrow->id;
+        $c->buyer_id  = $escrow->buyer_id;
+        $c->seller_id = $escrow->seller_id;
+        $c->status    = $overrides['status'] ?? Status::YES;
+        $c->save();
+
+        return $c;
     }
 
     protected function balanceOf(Wallet $wallet)
