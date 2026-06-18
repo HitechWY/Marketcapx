@@ -173,8 +173,51 @@
     opacity: 0.9;               /* gentle hierarchy below the heading */
 }
 
+/* =====================================================================
+   Slice 3 — Public content section cards (service, feature, why-choose-us,
+   about). Consistent radius + hover lift/shadow + icon motion. Scoped under
+   .main-wrapper (public content only). Radius/hover only — no layout shift.
+   ===================================================================== */
+.main-wrapper .service-card,
+.main-wrapper .feaure-card,
+.main-wrapper .choose-card {
+    border-radius: var(--ds-radius-lg);
+    transition: transform var(--ds-transition-base), box-shadow var(--ds-transition-base);
+}
+
+.main-wrapper .service-card:hover,
+.main-wrapper .feaure-card:hover,
+.main-wrapper .choose-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--ds-shadow-lg);
+}
+
+.main-wrapper .service-card__icon,
+.main-wrapper .feaure-card__icon,
+.main-wrapper .choose-card__icon {
+    transition: transform var(--ds-transition-base);
+}
+
+.main-wrapper .service-card:hover .service-card__icon,
+.main-wrapper .feaure-card:hover .feaure-card__icon,
+.main-wrapper .choose-card:hover .choose-card__icon {
+    transform: translateY(-4px) scale(1.05);
+}
+
+/* Image blocks (about / feature thumbnails): soften corners to match cards. */
+.main-wrapper .about-thumb img,
+.main-wrapper .feature-thumb img {
+    border-radius: var(--ds-radius-lg);
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
+    .main-wrapper .service-card,
+    .main-wrapper .feaure-card,
+    .main-wrapper .choose-card,
+    .main-wrapper .service-card__icon,
+    .main-wrapper .feaure-card__icon,
+    .main-wrapper .choose-card__icon,
     .header .main-menu li a::after,
     .header .btn,
     .nav-right .btn,
