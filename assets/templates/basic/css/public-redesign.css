@@ -574,3 +574,86 @@ body {
         transition: none;
     }
 }
+
+/* ----- Slice C — Trust / security / value treatment -----
+   Sharpen the service / feature / why-choose / overview "proof points" so the
+   benefit triples read as crafted fintech trust signals. Surfaces + hover lift
+   already come from Phase 3; here we add icon badges, a brand section divider,
+   and an accented stats band. No new content/markup/transitions, no layout
+   shift — the hover tints are bound to :hover state (instant), so this slice
+   adds nothing for the reduced-motion guard to disable. */
+
+/* Dark-theme completeness (foundational): main.css declares `section {
+   background-color:#fff }` (specificity 0,0,1), and Phase 3 only darkened the
+   NAMED surface utilities (.section--bg/.section--bg2/.bg-white). That left the
+   image-backed and plain content sections (why-choose-us, overview, testimonial,
+   the secondary about band) sitting on white — a gap against the premium-black
+   identity, and the reason their benefit content reads as a bright band. Default
+   every PUBLIC section to the dark base (image-backed sections paint their image
+   over it), then re-assert the elevated .section--bg surface so its subtle
+   elevation is preserved. Scoped under .main-wrapper, so dashboards/admin/auth
+   (different layout, this file not loaded) are never affected. */
+.main-wrapper section {
+    background-color: var(--pb-bg);
+}
+
+.main-wrapper section.section--bg {
+    background-color: var(--pb-surface);
+}
+
+/* Icon badges: wrap each card icon (a 66px font icon for service, a 65px img
+   for feature/choose) in a consistent brand-tinted chip. Padding-based so it
+   fits any icon without clipping; inline-flex keeps it centered inside the
+   centered service cards and left-aligned in the others, automatically. */
+.main-wrapper .service-card__icon,
+.main-wrapper .feaure-card__icon,
+.main-wrapper .choose-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--ds-space-4);
+    border-radius: var(--ds-radius-lg);
+    background-color: rgba(var(--ds-color-primary-rgb), 0.12);
+    border: 1px solid rgba(var(--ds-color-primary-rgb), 0.22);
+}
+
+/* Brighten the badge as the card lifts (pairs with the Phase 3 icon
+   translate/scale hover, which is preserved). */
+.main-wrapper .service-card:hover .service-card__icon,
+.main-wrapper .feaure-card:hover .feaure-card__icon,
+.main-wrapper .choose-card:hover .choose-card__icon {
+    background-color: rgba(var(--ds-color-primary-rgb), 0.20);
+    border-color: rgba(var(--ds-color-primary-rgb), 0.40);
+}
+
+/* Section divider: a short brand underline under centered section headings for
+   clearer hierarchy. Scoped to .section-header (service / why-choose-us are
+   text-center) so left-aligned titles elsewhere are untouched. main.css
+   declares no ::after on .section-title, so this is purely additive. */
+.main-wrapper .section-header .section-title {
+    position: relative;
+    padding-bottom: var(--ds-space-4);
+}
+
+.main-wrapper .section-header .section-title::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 56px;
+    height: 3px;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-color-primary);
+    transform: translateX(-50%);
+}
+
+/* Stats band: a brand left-accent + bolder number on each overview counter, so
+   the figures read as proof points rather than plain text. */
+.main-wrapper .overview-single {
+    padding-left: var(--ds-space-4);
+    border-left: 2px solid rgba(var(--ds-color-primary-rgb), 0.55);
+}
+
+.main-wrapper .overview-single .overview-number {
+    font-weight: var(--ds-font-weight-bold);
+}
