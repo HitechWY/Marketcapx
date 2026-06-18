@@ -20,7 +20,7 @@
                         </li>
                     @endforeach
                 </ul>
-                <a href="{{ @$content->button_link }}" class="btn btn--base btn--custom mt-5">{{ __(@$content->button_name) }}</a>
+                <x-ui.button :href="@$content->button_link" variant="filled" class="btn--custom mt-5">{{ __(@$content->button_name) }}</x-ui.button>
             </div>
             <div class="col-xl-5 order-xl-2 order-1">
                 <div class="about-thumb">
