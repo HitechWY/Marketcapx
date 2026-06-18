@@ -255,12 +255,20 @@
 .main-wrapper .account-wrapper .form-check-label a {
     color: var(--md-sys-color-primary);
     border-radius: var(--md-sys-shape-corner-xs);
+    /* Always underline the helper links: the brand-primary link colour sits at
+       ~3.7-4.0:1 on the card in both schemes (below AA 4.5 for normal text,
+       though it meets the 3:1 UI/large-text threshold). Keeping the underline
+       on at rest means the links never rely on colour alone (WCAG 1.4.1) — the
+       site's brand primary is intentionally kept unchanged for consistency. */
+    text-decoration: underline;
+    font-weight: 500;
 }
 
 .main-wrapper .account-wrapper .account-form a:hover,
 .main-wrapper .account-wrapper .inner > p a:hover,
 .main-wrapper .account-wrapper .form-check-label a:hover {
     text-decoration: underline;
+    opacity: 0.85;
 }
 
 /* Keyboard focus is always visible on the auth links. */
