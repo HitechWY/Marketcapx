@@ -13,7 +13,7 @@
             <a href="{{ route('cookie.policy') }}" target="_blank" class="text--base">@lang('learn more')</a>
         </p>
         <div class="cookies-card__btn mt-4">
-            <a href="javascript:void(0)" class="btn btn--base w-100 policy">@lang('Allow')</a>
+            <x-ui.button href="javascript:void(0)" variant="filled" class="w-100 policy">@lang('Allow')</x-ui.button>
         </div>
     </div>
     <!-- cookies dark version end -->
