@@ -210,8 +210,54 @@
     border-radius: var(--ds-radius-lg);
 }
 
+/* =====================================================================
+   Slice 4 — Social proof & blog (testimonial, brands, blog cards).
+   Card/thumbnail polish only. We do NOT transform Slick slide containers
+   (.brand-slider/.thumb-slider) so the carousels keep working.
+   ===================================================================== */
+.main-wrapper .blog-card {
+    border-radius: var(--ds-radius-lg);
+    overflow: hidden;
+    transition: transform var(--ds-transition-base), box-shadow var(--ds-transition-base);
+}
+
+.main-wrapper .blog-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--ds-shadow-lg);
+}
+
+.main-wrapper .blog-card__thumb {
+    overflow: hidden;
+}
+
+.main-wrapper .blog-card__thumb img {
+    transition: transform var(--ds-transition-base);
+}
+
+.main-wrapper .blog-card:hover .blog-card__thumb img {
+    transform: scale(1.06);
+}
+
+/* Brand logos: gentle zoom on hover (no opacity/grayscale change so the
+   existing colour logos are untouched). */
+.main-wrapper .brand-item img {
+    transition: transform var(--ds-transition-base);
+}
+
+.main-wrapper .brand-item:hover img {
+    transform: scale(1.06);
+}
+
+/* Testimonial imagery: match the card radius language. */
+.main-wrapper .testimonial-slide-area .thumb img {
+    border-radius: var(--ds-radius-md);
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
+    .main-wrapper .blog-card,
+    .main-wrapper .blog-card__thumb img,
+    .main-wrapper .brand-item img,
     .main-wrapper .service-card,
     .main-wrapper .feaure-card,
     .main-wrapper .choose-card,
