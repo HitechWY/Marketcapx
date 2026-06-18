@@ -66,22 +66,19 @@
         <div class="row mb-5 gy-4 d-lg-flex d-none">
             @foreach ($wallets as $wallet)
                 <div class="col-lg-4 col-md-6">
-                    <div class="d-widget curve--shape">
-                        <div class="d-widget__content">
-                            <i class="las la-wallet"></i>
-                            <h2 class="d-widget__amount fw-normal amount__responsive">
-                                {{ $wallet->currency->currency_symbol }}{{ showAmount($wallet->balance, $wallet->currency, currencyFormat: false) }}
-                                {{ $wallet->currency->currency_code }}
-                            </h2>
-                        </div>
+                    <x-ui.widget>
+                        {{ $wallet->currency->currency_symbol }}{{ showAmount($wallet->balance, $wallet->currency, currencyFormat: false) }}
+                        {{ $wallet->currency->currency_code }}
                         @if (module('transfer_money', $module)->status)
-                            <div class="d-widget__footer d-flex flex-wrap justify-content-between">
-                                <a href="{{ route('user.transfer', ['wallet' => $wallet->currency->currency_code]) }}" class="font-size--14px">
-                                    @lang('Transfer Money')<i class="las la-long-arrow-alt-right"></i>
-                                </a>
-                            </div>
+                            <x-slot:footer>
+                                <div class="d-widget__footer d-flex flex-wrap justify-content-between">
+                                    <a href="{{ route('user.transfer', ['wallet' => $wallet->currency->currency_code]) }}" class="font-size--14px">
+                                        @lang('Transfer Money')<i class="las la-long-arrow-alt-right"></i>
+                                    </a>
+                                </div>
+                            </x-slot:footer>
                         @endif
-                    </div><!-- d-widget end -->
+                    </x-ui.widget>
                 </div>
             @endforeach
         </div><!-- row end -->
