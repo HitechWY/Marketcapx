@@ -295,6 +295,85 @@
     border-radius: var(--ds-radius-sm);
 }
 
+/* #####################################################################
+   PHASE 3 — Premium black modern public UI (public marketing only)
+   This stylesheet is linked ONLY from layouts/frontend.blade.php, so body/
+   global rules below apply to public pages only (never dashboards/admin/
+   checkout/auth). Loads after main.css → wins on source order (no !important).
+   #####################################################################
+
+   ----- Slice A — Theme foundation (dark surfaces + light text) ----- */
+:root {
+    /* Layered near-blacks */
+    --pb-bg: #0a0b0f;          /* page base            */
+    --pb-surface: #111422;     /* elevated section     */
+    --pb-card: #161a29;        /* raised card          */
+    --pb-card-2: #1b2133;      /* card hover / inputs  */
+    --pb-border: rgba(255, 255, 255, 0.08);
+    --pb-border-strong: rgba(255, 255, 255, 0.14);
+    /* Text on dark */
+    --pb-text: #e8eaf0;        /* primary light text   */
+    --pb-text-muted: #9aa3b2;  /* secondary / body     */
+    /* Brand glow from the live primary (color.php sets --ds-color-primary) */
+    --pb-glow: color-mix(in srgb, var(--ds-color-primary) 45%, transparent);
+    --pb-glow-soft: color-mix(in srgb, var(--ds-color-primary) 22%, transparent);
+}
+
+/* Public page base surface + default text */
+body {
+    background-color: var(--pb-bg);
+    color: var(--pb-text);
+}
+
+/* Deepen the theme's section background utilities */
+.section--bg {
+    background-color: var(--pb-surface);
+}
+
+.section--bg2 {
+    background-color: var(--pb-bg);
+}
+
+/* The about section uses Bootstrap's .bg-white utility, which is declared with
+   !important; overriding it on public pages (so it joins the dark theme)
+   therefore requires !important — no lower-specificity alternative exists. */
+.main-wrapper .bg-white {
+    background-color: var(--pb-bg) !important;
+}
+
+/* Light-by-default sections (about/testimonial/business/brands/overview) inherit
+   the dark body now; flip their headings/text to light. Brand-accent text
+   (.text--base) and explicit .text-white are preserved via :not() guards. */
+.main-wrapper :is(h1, h2, h3, h4, h5, h6):not(.text-white):not(.text--base),
+.main-wrapper .section-title:not(.text-white):not(.text--base),
+.main-wrapper .title:not(.text-white):not(.text--base) {
+    color: var(--pb-text);
+}
+
+.main-wrapper p:not(.text-white):not(.text--base),
+.main-wrapper .section-subtitle:not(.text--base),
+.main-wrapper li:not(.text-white):not(.text--base) {
+    color: var(--pb-text-muted);
+}
+
+/* Safety net so no light card surface remains between slices (refined in C/D).
+   Flip the two white cards to dark glass + readable text immediately. */
+.main-wrapper .choose-card,
+.main-wrapper .blog-card {
+    background-color: var(--pb-card);
+    border: 1px solid var(--pb-border);
+}
+
+.main-wrapper .choose-card :is(h1, h2, h3, h4, h5, h6, p, a, span, li):not(.text--base),
+.main-wrapper .blog-card :is(h1, h2, h3, h4, h5, h6, p, a, span):not(.text--base) {
+    color: var(--pb-text);
+}
+
+.main-wrapper .blog-card .blog-card__meta,
+.main-wrapper .blog-card .blog-card__meta * {
+    color: var(--pb-text-muted);
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
     .main-wrapper .form--control,
