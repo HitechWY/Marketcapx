@@ -404,6 +404,24 @@ body {
     opacity: 0.9;
 }
 
+/* ----- Slice C — Content section dark-glass cards -----
+   Give the service card the same dark-glass surface the Slice A safety net gave
+   choose/blog, and a unified brand-tinted hover for the three public CARD types.
+   (.feaure-card is intentionally left borderless — it is an icon+text feature
+   highlight with no internal padding, so a surface would look cramped.) */
+.main-wrapper .service-card {
+    background-color: var(--pb-card);
+    border: 1px solid var(--pb-border);
+    border-radius: var(--ds-radius-lg);
+}
+
+.main-wrapper .service-card:hover,
+.main-wrapper .choose-card:hover,
+.main-wrapper .blog-card:hover {
+    border-color: var(--pb-border-strong);
+    box-shadow: var(--ds-shadow-lg), 0 0 24px -6px var(--pb-glow-soft);
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
     .hero .video-btn,
