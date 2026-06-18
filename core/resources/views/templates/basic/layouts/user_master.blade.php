@@ -25,6 +25,14 @@
     <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/dashboard.css') }}">
 @endpush
 
+@push('style')
+    {{-- Material M3: dashboard shell re-skin (user/merchant/agent dashboards
+         only — loaded from the dashboard masters, never public/auth/admin/
+         checkout). Loads after dashboard.css so the Material layer wins.
+         Presentation only — no form contract touched. --}}
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-dashboard.css') }}?v=1">
+@endpush
+
 @push('script')
     <script>
         (function($) {

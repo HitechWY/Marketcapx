@@ -19,6 +19,13 @@
     <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'agent/css/main.css') }}">
 @endpush
 
+@push('style')
+    {{-- Material M3: dashboard shell re-skin (dashboard areas only — loaded from
+         the dashboard masters, never public/auth/admin/checkout). Loads after
+         agent main.css so the Material layer wins. Presentation only. --}}
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-dashboard.css') }}?v=1">
+@endpush
+
 @push('script-lib')
     <!-- main css -->
     <script src="{{ asset(activeTemplate(true) . 'agent/js/app.js') }}"></script>

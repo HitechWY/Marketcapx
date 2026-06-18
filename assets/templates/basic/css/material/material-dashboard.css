@@ -1,0 +1,44 @@
+/* =====================================================================
+   MarketCap X — Material dashboard shell re-skin (M3)
+   ---------------------------------------------------------------------
+   DASHBOARD AREAS ONLY (user / merchant / agent). Loaded ONLY from the three
+   dashboard master layouts (layouts/user_master, merchant_master, agent_master)
+   via @push('style'), so it can never leak into the public marketing pages,
+   auth pages, the admin panel or checkout — those use different layouts.
+   Loads AFTER the per-area dashboard CSS (dashboard.css / merchant|agent main.css,
+   pushed in @push('style-lib')) so this Material layer wins. material-tokens.css
+   + material-components.css already load globally from app.blade.php, so the
+   --md-sys-* roles and the [data-md-theme] light/dark scheme are available.
+
+   Strategy: additive Material chrome (surface colour, shape, elevation, state,
+   focus) layered onto the EXISTING dashboard classes. PRESENTATION ONLY — no
+   markup, no DOM structure, and NO financial/KYC/auth form contract is touched
+   (this file changes zero Blade form fields). Default scheme follows the
+   persisted [data-md-theme] (dark by default), same as M1/M2.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Dashboard surface foundation. Re-point the dashboard backdrop + base
+   text onto Material roles so the whole shell tracks light/dark. Scoped to the
+   dashboard roots only.
+   --------------------------------------------------------------------- */
+.agent-dashboard,
+.main-wrapper {
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard {
+    background-color: var(--md-sys-color-background);
+}
+
+/* The user dashboard renders inside .main-wrapper on the app layout (no
+   public-redesign.css here); give it the same Material backdrop. */
+.main-wrapper {
+    background-color: var(--md-sys-color-background);
+}
+
+/* Material symbols / icon font smoothing parity with the rest of the shell. */
+.agent-dashboard .las,
+.main-wrapper .d-widget .las {
+    line-height: 1;
+}
