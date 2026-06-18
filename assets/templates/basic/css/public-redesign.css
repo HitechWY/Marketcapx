@@ -657,3 +657,30 @@ body {
 .main-wrapper .overview-single .overview-number {
     font-weight: var(--ds-font-weight-bold);
 }
+
+/* ----- Slice D — Services / features / cards hierarchy -----
+   Tidy the benefit grids so each three-up set scans as a unit. CSS-only; no
+   markup/content/layout-structure change, no transitions (nothing for the
+   reduced-motion guard to disable). */
+
+/* Equal-height cards: Bootstrap `.row` is display:flex with align-items:stretch,
+   so the columns already match the tallest; making the card fill its column
+   (height:100%) gives even card bottoms regardless of copy length, instead of
+   ragged edges. The service card's absolute ::before/::after/.dotted-wrapper
+   decorations are positioned to the card box and stretch cleanly with it. */
+.main-wrapper .service-card,
+.main-wrapper .choose-card,
+.main-wrapper .feaure-card {
+    height: 100%;
+}
+
+/* Card titles: unify weight + slight negative tracking across the three card
+   types for a clearer, more scannable heading rhythm. Colour is left to the
+   existing main.css/Phase-3 rules (service title #fff, choose/feature lightened
+   by Phase 3) so contrast is unchanged. */
+.main-wrapper .service-card__content .title,
+.main-wrapper .choose-card__content .title,
+.main-wrapper .feaure-card__content .title {
+    font-weight: var(--ds-font-weight-semibold);
+    letter-spacing: -0.01em;
+}
