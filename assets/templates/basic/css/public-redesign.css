@@ -422,8 +422,28 @@ body {
     box-shadow: var(--ds-shadow-lg), 0 0 24px -6px var(--pb-glow-soft);
 }
 
+/* ----- Slice D — Social proof / blog / brands -----
+   Blog cards are already dark-glass (Slice A/C); the testimonial card is already
+   dark and reads well. The only fix needed: brand/partner logos are DB-driven
+   images of unknown colour and disappear on the dark background, so place each
+   in a clean light "logo chip" — guaranteed visible regardless of logo colour,
+   a standard premium "trusted by" treatment. (No transform on the .brand-slider
+   Slick container — only the slide item gets a surface.) */
+.main-wrapper .brand-item {
+    background-color: rgba(255, 255, 255, 0.92);
+    border-radius: var(--ds-radius-md);
+    padding: var(--ds-space-4) var(--ds-space-5);
+    box-sizing: border-box;
+    transition: background-color var(--ds-transition-fast);
+}
+
+.main-wrapper .brand-item:hover {
+    background-color: #ffffff;
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
+    .main-wrapper .brand-item,
     .hero .video-btn,
     .main-wrapper .form--control,
     .main-wrapper .page-breadcrumb a,
