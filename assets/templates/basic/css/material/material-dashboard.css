@@ -266,3 +266,107 @@
         transition: none;
     }
 }
+
+/* =====================================================================
+   M3 (F) — Tables, lists, badges, empty states. Read-only presentation:
+   links, routes, IDs, action buttons and any form/status behaviour are
+   untouched (no markup edited).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   10. Data tables (.table.custom--table) → Material table treatment:
+   subtle header surface, row hover state layer, hairline row dividers.
+   --------------------------------------------------------------------- */
+.agent-dashboard .table.custom--table thead th,
+.main-wrapper .table.custom--table thead th {
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    letter-spacing: 0.02em;
+}
+
+.agent-dashboard .table.custom--table tbody td,
+.main-wrapper .table.custom--table tbody td {
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard .table.custom--table tbody tr,
+.main-wrapper .table.custom--table tbody tr {
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .table.custom--table tbody tr:hover,
+.main-wrapper .table.custom--table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 5%, transparent);
+}
+
+/* ---------------------------------------------------------------------
+   11. Transaction accordion list (.table--acordion) → Material list rows
+   with a state layer; the expand button + caption list adopt M3 colours.
+   --------------------------------------------------------------------- */
+.agent-dashboard .table--acordion .accordion-item,
+.main-wrapper .table--acordion .accordion-item {
+    background-color: transparent;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.agent-dashboard .table--acordion .accordion-button,
+.main-wrapper .table--acordion .accordion-button {
+    background-color: transparent;
+    color: var(--md-sys-color-on-surface);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .table--acordion .accordion-button:hover,
+.main-wrapper .table--acordion .accordion-button:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 5%, transparent);
+}
+
+.agent-dashboard .table--acordion .trans-title,
+.main-wrapper .table--acordion .trans-title {
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard .caption-list .caption,
+.main-wrapper .caption-list .caption {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.agent-dashboard .caption-list .value,
+.main-wrapper .caption-list .value {
+    color: var(--md-sys-color-on-surface);
+}
+
+/* ---------------------------------------------------------------------
+   12. Status badges → Material chip shape (full radius, label typescale).
+   The semantic fills come from the theme (success/warning/danger/info/dark);
+   we only normalise shape + sizing so they read as M3 status chips.
+   --------------------------------------------------------------------- */
+.agent-dashboard .badge,
+.main-wrapper .badge {
+    border-radius: var(--md-sys-shape-corner-full);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 0.35em 0.7em;
+}
+
+/* ---------------------------------------------------------------------
+   13. Empty-state messages → centred, muted on-surface so "no records"
+   reads as a calm Material empty state rather than a stray heading.
+   --------------------------------------------------------------------- */
+.agent-dashboard .accordion-body.text-center .text--muted,
+.main-wrapper .accordion-body.text-center .text--muted,
+.agent-dashboard .text--muted.text-center,
+.main-wrapper .text--muted.text-center {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-dashboard .table.custom--table tbody tr,
+    .main-wrapper .table.custom--table tbody tr,
+    .agent-dashboard .table--acordion .accordion-button,
+    .main-wrapper .table--acordion .accordion-button {
+        transition: none;
+    }
+}
