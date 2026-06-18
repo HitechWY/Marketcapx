@@ -253,8 +253,39 @@
     border-radius: var(--ds-radius-md);
 }
 
+/* =====================================================================
+   Slice 5 — Inner public pages (breadcrumb + public form inputs).
+   Styling only — the contact form's method/action/field names are NOT
+   touched. Focus states replace the default outline with a clearly visible
+   brand ring (better UX + accessibility). Scoped to public content.
+   ===================================================================== */
+.main-wrapper .form--control {
+    transition: border-color var(--ds-transition-fast), box-shadow var(--ds-transition-fast);
+}
+
+.main-wrapper .form--control:focus,
+.main-wrapper .form--control:focus-visible {
+    /* main.css sets the focus border-color with !important, so overriding it
+       to show a clear brand focus indicator (an accessibility affordance)
+       requires !important here — there is no lower-specificity alternative.
+       The box-shadow ring does not conflict and needs no !important. */
+    border-color: var(--ds-color-primary) !important;
+    box-shadow: 0 0 0 3px rgba(var(--ds-color-primary-rgb), 0.18);
+    outline: none;
+}
+
+.main-wrapper .page-breadcrumb a {
+    transition: color var(--ds-transition-fast), opacity var(--ds-transition-fast);
+}
+
+.main-wrapper .page-breadcrumb a:hover {
+    opacity: 0.85;
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
+    .main-wrapper .form--control,
+    .main-wrapper .page-breadcrumb a,
     .main-wrapper .blog-card,
     .main-wrapper .blog-card__thumb img,
     .main-wrapper .brand-item img,
