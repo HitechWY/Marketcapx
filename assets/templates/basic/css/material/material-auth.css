@@ -1,0 +1,110 @@
+/* =====================================================================
+   MarketCap X — Material auth & onboarding re-skin (M2)
+   ---------------------------------------------------------------------
+   AUTH / ONBOARDING PAGES ONLY. Loaded from layouts/frontend.blade.php,
+   route-gated to the user auth GET routes (user.login / user.register /
+   user.password.request / user.password.reset / user.password.code.verify),
+   so every other page on this shared layout is untouched. Loads AFTER
+   public-redesign.css (same @stack('style')), and material-tokens.css +
+   material-components.css already load globally from app.blade.php — so the
+   --md-sys-* roles and the [data-md-theme] light/dark scheme are available.
+
+   Strategy (mirrors the verified M1 approach):
+     1. Re-point the premium-black --pb-* tokens at Material 3 --md-sys-*
+        roles. public-redesign.css drives the whole auth surface through
+        --pb-*, so this single alias re-skins the page onto Material AND makes
+        the persisted light/dark scheme apply (auth has no toggle button of its
+        own — it follows the scheme the visitor set on the marketing pages).
+     2. Add auth-specific Material chrome: the account card surface/elevation/
+        shape, the split hero panel, fields, buttons, the account-type chips,
+        the secure-password popup and the "exists" modal.
+
+   PRESENTATION ONLY. No markup, form action/method, input name, hidden field,
+   CSRF, captcha, validation, route or backend behaviour is touched here.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Re-alias the premium-black tokens onto Material roles (identical to
+   the M1 block). Loads after public-redesign.css so this :root wins; every
+   existing --pb-* consumer on the auth page now follows Material light/dark.
+   --------------------------------------------------------------------- */
+:root {
+    --pb-bg: var(--md-sys-color-background);
+    --pb-surface: var(--md-sys-color-surface-container);
+    --pb-card: var(--md-sys-color-surface-container-low);
+    --pb-card-2: var(--md-sys-color-surface-container-high);
+    --pb-border: var(--md-sys-color-outline-variant);
+    --pb-border-strong: var(--md-sys-color-outline);
+    --pb-text: var(--md-sys-color-on-surface);
+    --pb-text-muted: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------------------------------------------------------------
+   1b. Breadcrumb on permanently-dark imagery keeps light text in BOTH
+   schemes (same exception M1 handles for marketing). The auth pages render
+   the .inner-hero breadcrumb, whose image + dark overlay stay dark in light
+   mode too, so its text must not flip to the dark on-surface colour. There is
+   no lower-specificity hook than public-redesign.css's :is() rule, so the
+   override needs !important and is scoped to the breadcrumb only.
+   --------------------------------------------------------------------- */
+.inner-hero .page-title,
+.inner-hero .page-breadcrumb,
+.inner-hero .page-breadcrumb li,
+.inner-hero .page-breadcrumb a {
+    color: #fff !important;
+}
+
+/* ---------------------------------------------------------------------
+   2. Account card → Material surface. The card carries the form; give it a
+   real M3 container colour, shape and elevation in both schemes. (main.css
+   hard-codes a white background; this re-points it onto the surface role.)
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper {
+    background-color: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-xl);
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+/* The form column sits on a slightly higher surface so it reads as the
+   primary working area next to the imagery panel. */
+.main-wrapper .account-wrapper .right {
+    background-color: var(--md-sys-color-surface-container-low);
+}
+
+/* ---------------------------------------------------------------------
+   2b. Imagery panel (.left). Keep the configured background image but lay a
+   brand-tinted scrim over it so it reads as one Material surface with the
+   form column and stays legible against any admin-uploaded image.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .left {
+    position: relative;
+    background-size: cover;
+    background-position: center;
+}
+
+.main-wrapper .account-wrapper .left::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--md-sys-color-primary) 38%, transparent),
+        color-mix(in srgb, var(--md-sys-color-scrim) 28%, transparent)
+    );
+    pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------
+   2c. Heading + intro copy adopt the M3 headline/body typescale. Colour
+   comes from the surface role so it tracks light/dark.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .title {
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.01em;
+}
+
+.main-wrapper .account-wrapper .inner > .text-center > p {
+    color: var(--md-sys-color-on-surface-variant);
+}
