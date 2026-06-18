@@ -15,11 +15,17 @@ class Agent extends Authenticatable{
 
     protected $table = "agents";
     
-    protected $casts = [ 
+    protected $casts = [
         'email_verified_at' => 'datetime',
         'address' => 'object',
         'kyc_data' => 'object',
         'ver_code_send_at' => 'datetime'
+    ];
+
+    // Never serialise auth secrets (array/JSON output). Direct access
+    // ($agent->password for the hasher) is unaffected. Mirrors Admin.
+    protected $hidden = [
+        'password', 'remember_token',
     ];
 
     protected $guarded = [];

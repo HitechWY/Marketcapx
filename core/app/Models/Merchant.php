@@ -23,6 +23,13 @@ class Merchant extends Authenticatable{
         'kyc_data' => 'object',
     ];
 
+    // Never serialise auth secrets or the merchant's HMAC signing key (array/JSON
+    // output). Direct access ($merchant->secret_api_key in the API-key Blade, and
+    // ->password for the hasher) is unaffected; no API serialises these fields.
+    protected $hidden = [
+        'password', 'remember_token', 'secret_api_key',
+    ];
+
     public function getFullnameAttribute()
     {
         return $this->firstname . ' ' . $this->lastname;
