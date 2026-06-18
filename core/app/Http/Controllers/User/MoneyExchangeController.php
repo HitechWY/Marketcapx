@@ -49,7 +49,11 @@ class MoneyExchangeController extends Controller
             return back()->withNotify($notify)->withInput();
         }
 
-        $toWallet = Wallet::find($request->to_wallet_id);
+        // SCOPE (B3): the destination must be one of the user's OWN wallets — the
+        // exchange form only ever offers $user->wallets(). Scoping this exactly like
+        // $fromWallet prevents crediting an arbitrary/other-user wallet (and writing
+        // a self-owned ledger row onto someone else's wallet).
+        $toWallet = Wallet::checkWallet(['user' => $user, 'type' => 'USER'])->find($request->to_wallet_id);
         if (!$toWallet) {
             $notify[] = ['error', 'Your wallet currency is not found to which you want to exchange.'];
             return back()->withNotify($notify);
