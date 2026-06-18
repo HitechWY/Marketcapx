@@ -103,30 +103,30 @@
                             </button>
                         @endif
                         @if (auth()->user())
-                            <a href="{{ route('user.logout') }}" class="btn btn-sm btn--danger d-lg-inline-flex align-items-center me-2">
+                            <x-ui.button :href="route('user.logout')" variant="outlined" class="md-button--danger md-button--sm me-2">
                                 <i class="las la-sign-out-alt font-size--18px me-2"></i> @lang('Logout')
-                            </a>
-                            <a href="{{ route('user.home') }}" class="btn btn-sm btn--base d-lg-inline-flex align-items-center">
+                            </x-ui.button>
+                            <x-ui.button :href="route('user.home')" variant="filled" class="md-button--sm">
                                 <i class="las la-home font-size--18px me-2"></i> @lang('Dashboard')
-                            </a>
+                            </x-ui.button>
                         @elseif(agent())
-                            <a href="{{ route('agent.logout') }}" class="btn btn-sm btn--danger d-lg-inline-flex align-items-center me-2">
+                            <x-ui.button :href="route('agent.logout')" variant="outlined" class="md-button--danger md-button--sm me-2">
                                 <i class="las la-sign-out-alt font-size--18px me-2"></i> @lang('Logout')
-                            </a>
-                            <a href="{{ route('agent.home') }}" class="btn btn-sm btn--base d-lg-inline-flex align-items-center">
+                            </x-ui.button>
+                            <x-ui.button :href="route('agent.home')" variant="filled" class="md-button--sm">
                                 <i class="las la-home font-size--18px me-2"></i> @lang('Dashboard')
-                            </a>
+                            </x-ui.button>
                         @elseif(merchant())
-                            <a href="{{ route('merchant.logout') }}" class="btn btn-sm btn--danger d-lg-inline-flex align-items-center me-2">
+                            <x-ui.button :href="route('merchant.logout')" variant="outlined" class="md-button--danger md-button--sm me-2">
                                 <i class="las la-sign-out-alt font-size--18px me-2"></i> @lang('Logout')
-                            </a>
-                            <a href="{{ route('merchant.home') }}" class="btn btn-sm btn--base d-lg-inline-flex align-items-center">
+                            </x-ui.button>
+                            <x-ui.button :href="route('merchant.home')" variant="filled" class="md-button--sm">
                                 <i class="las la-home font-size--18px me-2"></i> @lang('Dashboard')
-                            </a>
+                            </x-ui.button>
                         @else
-                            <a href="{{ route('user.login') }}" class="btn btn-sm btn--base d-lg-inline-flex align-items-center">
+                            <x-ui.button :href="route('user.login')" variant="filled" class="md-button--sm">
                                 <i class="las la-user-circle font-size--18px me-2"></i> @lang('Login')
-                            </a>
+                            </x-ui.button>
                         @endif
                     </div>
                 </div>

@@ -24,6 +24,24 @@
     vertical-align: middle;
 }
 
+/* Compact button for dense chrome (header action buttons). */
+.md-button.md-button--sm {
+    min-height: 36px;
+    padding: 0 18px;
+    font-size: 0.85rem;
+}
+
+/* Destructive variant — preserves the legacy btn--danger affordance on the
+   rebuilt outlined Logout button (header). Material error role. */
+.md-button.md-button--danger {
+    color: var(--md-sys-color-error, #eb2222);
+    border-color: color-mix(in srgb, var(--md-sys-color-error, #eb2222) 60%, transparent);
+}
+
+.md-button.md-button--danger:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-error, #eb2222) 10%, transparent);
+}
+
 /* Status-chip tone modifiers (semantic fills on the M0 .md-chip). */
 .md-chip--tone-success { background: var(--md-sys-color-success, #28c76f); color: #fff; }
 .md-chip--tone-warning { background: var(--md-sys-color-warning, #ff9f43); color: #1a1a1a; }
