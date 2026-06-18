@@ -43,3 +43,85 @@
     outline-offset: 2px;
     border-radius: var(--md-sys-shape-corner-xs);
 }
+
+/* =====================================================================
+   M4 (D) — Admin shell: sidebar, topnav, breadcrumb, dropdowns.
+   Theme-independent polish: the dark sidebar uses WHITE state layers; the
+   light topbar/body uses DARK state layers. No colours are repainted onto
+   theme-dependent surface roles.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   2. Sidebar (dark) → Material nav: section labels, rounded link targets,
+   white state layer on hover/focus, and a left-accent + tint for the active
+   item (the M3-style selected state, adapted to the dark sidebar).
+   --------------------------------------------------------------------- */
+.page-wrapper .sidebar__menu-header {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.page-wrapper .sidebar .nav-link {
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease,
+                color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .sidebar .nav-link:hover,
+.page-wrapper .sidebar .nav-link:focus-visible {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.page-wrapper .sidebar .sidebar-menu-item.active > .nav-link,
+.page-wrapper .sidebar .sidebar-menu-item.active > a {
+    background-color: rgba(255, 255, 255, 0.10);
+    box-shadow: inset 3px 0 0 0 var(--ma-accent);
+}
+
+/* ---------------------------------------------------------------------
+   3. Topbar / breadcrumb. Soft Material elevation on the page title block;
+   the breadcrumb stays on its own colours (no repaint).
+   --------------------------------------------------------------------- */
+.page-wrapper .page-title {
+    letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------
+   4. Dropdown menus (profile, notifications) → Material menu surface:
+   M3 shape + elevation, dark state layer on items (light context).
+   --------------------------------------------------------------------- */
+.page-wrapper .dropdown-menu {
+    border-radius: var(--md-sys-shape-corner-md);
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.page-wrapper .dropdown-menu__item {
+    border-radius: var(--md-sys-shape-corner-xs);
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .dropdown-menu__item:hover,
+.page-wrapper .dropdown-menu__item:focus-visible {
+    background-color: var(--ma-state-hover);
+}
+
+/* ---------------------------------------------------------------------
+   5. Mobile sidebar toggle / close → Material icon-button affordance.
+   --------------------------------------------------------------------- */
+.page-wrapper .navbar-toggle-btn,
+.page-wrapper .res-sidebar-close-btn,
+.page-wrapper .breadcrumb-nav-open {
+    border-radius: var(--md-sys-shape-corner-full);
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-wrapper .sidebar .nav-link,
+    .page-wrapper .dropdown-menu__item,
+    .page-wrapper .navbar-toggle-btn,
+    .page-wrapper .res-sidebar-close-btn,
+    .page-wrapper .breadcrumb-nav-open {
+        transition: none;
+    }
+}
