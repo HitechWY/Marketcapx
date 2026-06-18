@@ -40,9 +40,9 @@
                         <div class="content-slider">
                             @foreach ($elements as $element)
                                 <div class="single-slide">
-                                    <h3 class="name text-white">{{ __(@$element->data_values->author_name) }}</h3>
-                                    <span class="mt-1">{{ __(@$element->data_values->designation) }}</span>
-                                    <p class="mt-3">{{ __(@$element->data_values->quote) }}</p>
+                                    <x-ui.testimonial-card :name="__(@$element->data_values->author_name)" :designation="__(@$element->data_values->designation)">
+                                        {{ __(@$element->data_values->quote) }}
+                                    </x-ui.testimonial-card>
                                 </div>
                             @endforeach
                         </div>
