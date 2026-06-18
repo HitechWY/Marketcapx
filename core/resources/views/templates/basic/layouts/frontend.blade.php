@@ -34,4 +34,12 @@
          (bump this when public-redesign.css changes). filemtime() is avoided —
          the cPanel split layout makes public_path() resolve to a missing dir. --}}
     <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/public-redesign.css') }}?v=5">
+
+    {{-- Material M1: re-skin the PUBLIC MARKETING pages only. Gated to marketing
+         routes so auth pages (user login/register also use this layout) stay
+         unchanged. Loads AFTER public-redesign.css so its --pb-* token aliases
+         win, re-pointing the existing dark theme onto Material light/dark tokens. --}}
+    @if (request()->routeIs('home', 'blogs', 'blog.details', 'contact', 'pages', 'policy.pages', 'cookie.policy'))
+        <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-public.css') }}?v=1">
+    @endif
 @endpush
