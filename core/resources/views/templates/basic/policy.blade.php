@@ -4,9 +4,9 @@
         <div class="container">
             <div class="row gy-4 justify-content-center">
                 <div class="col-xl-12">
-                    <div class="contact-form-wrapper">
+                    <x-ui.card variant="outlined" class="md-prose">
                         @php echo $policy->data_values->details; @endphp
-                    </div>
+                    </x-ui.card>
                 </div>
             </div>
         </div>

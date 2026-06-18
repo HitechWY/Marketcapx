@@ -24,16 +24,10 @@
         <div class="row gy-4">
             @foreach ($elements as $element)
                 <div class="col-lg-4 col-md-6 wow fadeInUp" data-wow-duration="0.3" data-wow-delay="0.1s">
-                    <div class="feaure-card">
-                        <div class="feaure-card__icon">
-                            <img src="{{ frontendImage('feature' ,@$element->data_values->icon, '65x65') }}"
-                                alt="image">
-                        </div>
-                        <div class="feaure-card__content mt-4">
-                            <h3 class="title text-white">{{ __(@$element->data_values->title) }}</h3>
-                            <p class="mt-3 text-white">{{ @$element->data_values->short_details }}</p>
-                        </div>
-                    </div><!-- feaure-card end -->
+                    <x-ui.feature-card :title="__(@$element->data_values->title)" align="left">
+                        <x-slot:icon><img src="{{ frontendImage('feature' ,@$element->data_values->icon, '65x65') }}" alt="image"></x-slot:icon>
+                        {{ @$element->data_values->short_details }}
+                    </x-ui.feature-card>
                 </div>
             @endforeach
         </div>

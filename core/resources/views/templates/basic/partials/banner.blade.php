@@ -16,7 +16,7 @@
                     {{ __(@$banner->subheading) }}
                 </p>
                 <div class="btn--group justify-content-center mt-4 wow fadeInUp" data-wow-duration="0.3" data-wow-delay="0.9s">
-                    <a href="{{ @$banner->button_link }}" class="btn btn--base btn--custom">{{ __(@$banner->button_name) }}</a>
+                    <x-ui.button :href="@$banner->button_link" variant="filled" class="btn--custom">{{ __(@$banner->button_name) }}</x-ui.button>
                     <a href="{{ @$banner->video_link }}" data-rel="lightcase:myCollection" class="video-btn">
                         <span class="icon"><i class="las la-play"></i></span>
                         <span class="text-white">{{ @__($banner->video_button_name) }}</span>

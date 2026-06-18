@@ -6,10 +6,12 @@
         <div class="row justify-content-center">
             <div class="col-lg-6">
                 <h2 class="page-title text-center text-white">{{ __($pageTitle) }}</h2>
-                <ul class="page-breadcrumb justify-content-center">
-                    <li><a href="{{ route('home') }}">@lang('Home')</a></li>
-                    <li>{{ __($pageTitle) }}</li>
-                </ul>
+                <nav aria-label="@lang('breadcrumb')">
+                    <ul class="page-breadcrumb justify-content-center">
+                        <li><a href="{{ route('home') }}">@lang('Home')</a></li>
+                        <li aria-current="page">{{ __($pageTitle) }}</li>
+                    </ul>
+                </nav>
             </div>
         </div>
     </div>

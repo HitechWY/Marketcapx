@@ -19,17 +19,17 @@
                     <ul class="post-share d-flex flex-wrap align-items-center justify-content-center mt-5">
                         <li class="caption">@lang('Share') : </li>
                         <li data-bs-toggle="tooltip" data-bs-placement="top" title="Facebook">
-                            <a target="_blank" href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode(url()->current()) }}">
+                            <a target="_blank" class="md-icon-button md-state" href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode(url()->current()) }}">
 								<i class="lab la-facebook-f"></i>
 							</a>
                         </li>
                         <li data-bs-toggle="tooltip" data-bs-placement="top" title="Linkedin">
-                            <a target="_blank" href="http://www.linkedin.com/shareArticle?mini=true&amp;url={{ urlencode(url()->current()) }}">
+                            <a target="_blank" class="md-icon-button md-state" href="http://www.linkedin.com/shareArticle?mini=true&amp;url={{ urlencode(url()->current()) }}">
 								<i class="lab la-linkedin-in"></i>
 							</a>
                         </li>
                         <li data-bs-toggle="tooltip" data-bs-placement="top" title="Twitter">
-                            <a target="_blank" href="https://twitter.com/intent/tweet?text=my share text&amp;url={{ urlencode(url()->current()) }}">
+                            <a target="_blank" class="md-icon-button md-state" href="https://twitter.com/intent/tweet?text=my share text&amp;url={{ urlencode(url()->current()) }}">
 								<i class="lab la-twitter"></i>
 							</a>
                         </li>
@@ -42,7 +42,7 @@
 					</div>
                 </div>
                 <div class="col-lg-4 ps-xl-5">
-                    <div class="blog-sidebar rounded-3 section--bg">
+                    <x-ui.card variant="outlined" class="blog-sidebar">
                         <h4 class="title">@lang('Recent Posts')</h4>
                         <ul class="s-post-list">
                             @foreach ($recentBlogs as $recentBlog)
@@ -51,7 +51,7 @@
                                         <img src="{{ frontendImage('blog' , 'thumb_'. $recentBlog->data_values->image) }}" alt="@lang('image')">
                                     </div>
                                     <div class="s-post__content">
-                                        <h6 class="s-post__title"> 
+                                        <h6 class="s-post__title">
 											<a href="{{ route('blog.details', $recentBlog->slug) }}">
 												{{ __($recentBlog->data_values->title) }}
 											</a>
@@ -63,7 +63,7 @@
                                 </li>
                             @endforeach
                         </ul>
-                    </div>
+                    </x-ui.card>
                 </div>
             </div>
         </div>
