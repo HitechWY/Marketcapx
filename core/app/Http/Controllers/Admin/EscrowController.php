@@ -11,6 +11,7 @@ use App\Models\Milestone;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class EscrowController extends Controller
@@ -160,66 +161,111 @@ class EscrowController extends Controller
             $notify[] = ['error', 'You couldn\'t transact greater than funded amount'];
             return back()->withNotify($notify);
         }
-        $charge = $escrow->paid_amount - $request->buyer_amount + $request->seller_amount;
-        $escrow->status = $request->status;
-        $escrow->dispute_charge = $charge;
-        $buyer = $escrow->buyer;
+
+        // Dispute charge = the held funds left after both payouts. Previously
+        // `paid_amount - buyer + seller` (operator precedence; audit F8) which
+        // over-stated the recorded charge. This only sets the recorded
+        // dispute_charge field — the payouts are buyer_amount/seller_amount as given.
+        $charge = $escrow->paid_amount - ($request->buyer_amount + $request->seller_amount);
+        $buyer  = $escrow->buyer;
         $seller = $escrow->seller;
-        $trx = getTrx();
-        $escrow->save();
+        $trx    = getTrx();
 
-        if ($request->buyer_amount) {
-            $buyerWallet = Wallet::where('user_id', $buyer->id)->where('currency_id', $escrow->currency_id)->where('user_type', 'USER')->first();
-
-            if (!$buyerWallet) {
-                $buyerWallet = createWallet($escrow->currency, $buyer);
-            }
-
-            $buyerWallet->balance += $request->buyer_amount;
-            $buyerWallet->save();
-
-            $transaction = new Transaction();
-            $transaction->user_id = $buyer->id;
-            $transaction->wallet_id = $buyerWallet->id;
-            $transaction->user_type = 'USER';
-            $transaction->currency_id = $escrow->currency_id;
-            $transaction->before_charge = $request->buyer_amount;
-            $transaction->amount = $request->buyer_amount;
-            $transaction->post_balance = $buyerWallet->balance;
-            $transaction->charge = 0;
-            $transaction->trx_type = '+';
-            $transaction->charge_type = '+';
-            $transaction->remark = 'escrow_amount_refunded';
-            $transaction->details = 'Disputed escrow amount refunded';
-            $transaction->trx = $trx;
-            $transaction->save();
+        // Ensure destination wallets exist BEFORE locking them (a brand-new wallet
+        // row cannot be locked); balances are mutated only under the locks below.
+        $buyerWallet = null;
+        if ($request->buyer_amount > 0) {
+            $buyerWallet = Wallet::where('user_id', $buyer->id)->where('currency_id', $escrow->currency_id)->where('user_type', 'USER')->first()
+                ?: createWallet($escrow->currency, $buyer);
+        }
+        $sellerWallet = null;
+        if ($request->seller_amount > 0) {
+            $sellerWallet = Wallet::where('user_id', $seller->id)->where('currency_id', $escrow->currency_id)->where('user_type', 'USER')->first()
+                ?: createWallet($escrow->currency, $seller);
         }
 
-        if ($request->seller_amount) {
-            $sellerWallet = Wallet::where('user_id', $seller->id)->where('currency_id', $escrow->currency_id)->where('user_type', 'USER')->first();
+        $resolved          = false;
+        $buyerPostBalance  = null;
+        $sellerPostBalance = null;
 
-            if (!$sellerWallet) {
-                $sellerWallet = createWallet($escrow->currency, $seller);
+        // Atomicity (audit F2): wrap the status change + both payouts + ledgers in
+        // one transaction, lock the escrow row and re-check its status under the
+        // lock so a concurrent/duplicate resolve cannot double-pay, and lock the
+        // affected wallet rows in a deterministic (id-ascending) order.
+        DB::transaction(function () use (
+            $escrow, $request, $charge, $buyerWallet, $sellerWallet,
+            $trx, &$resolved, &$buyerPostBalance, &$sellerPostBalance
+        ) {
+            $lockedEscrow = Escrow::where('id', $escrow->id)->lockForUpdate()->first();
+            if (!$lockedEscrow || $lockedEscrow->status != Status::ESCROW_DISPUTED) {
+                return; // already resolved -> idempotent no-op
             }
 
-            $sellerWallet->balance += $request->seller_amount;
-            $sellerWallet->save();
+            $wallets = array_filter([$buyerWallet, $sellerWallet]);
+            usort($wallets, fn ($a, $b) => $a->id <=> $b->id);
+            $locked = [];
+            foreach ($wallets as $w) {
+                $locked[$w->id] = Wallet::where('id', $w->id)->lockForUpdate()->first();
+            }
 
-            $transaction = new Transaction();
-            $transaction->user_id = $seller->id;
-            $transaction->user_type = 'USER';
-            $transaction->wallet_id = $sellerWallet->id;
-            $transaction->currency_id = $escrow->currency_id;
-            $transaction->before_charge = $request->seller_amount;
-            $transaction->amount = $request->seller_amount;
-            $transaction->post_balance = $sellerWallet->balance;
-            $transaction->charge = 0;
-            $transaction->trx_type = '+';
-            $transaction->charge_type = '+';
-            $transaction->remark = 'escrow_amount_received';
-            $transaction->details = 'Disputed escrow amount added';
-            $transaction->trx = $trx;
-            $transaction->save();
+            if ($request->buyer_amount > 0) {
+                $lw           = $locked[$buyerWallet->id];
+                $lw->balance += $request->buyer_amount;
+                $lw->save();
+
+                $transaction                = new Transaction();
+                $transaction->user_id       = $lockedEscrow->buyer_id;
+                $transaction->wallet_id     = $lw->id;
+                $transaction->user_type     = 'USER';
+                $transaction->currency_id   = $lockedEscrow->currency_id;
+                $transaction->before_charge = $request->buyer_amount;
+                $transaction->amount        = $request->buyer_amount;
+                $transaction->post_balance  = $lw->balance;
+                $transaction->charge        = 0;
+                $transaction->trx_type      = '+';
+                $transaction->charge_type   = '+';
+                $transaction->remark        = 'escrow_amount_refunded';
+                $transaction->details       = 'Disputed escrow amount refunded';
+                $transaction->trx           = $trx;
+                $transaction->save();
+
+                $buyerPostBalance = $lw->balance;
+            }
+
+            if ($request->seller_amount > 0) {
+                $lw           = $locked[$sellerWallet->id];
+                $lw->balance += $request->seller_amount;
+                $lw->save();
+
+                $transaction                = new Transaction();
+                $transaction->user_id       = $lockedEscrow->seller_id;
+                $transaction->user_type     = 'USER';
+                $transaction->wallet_id     = $lw->id;
+                $transaction->currency_id   = $lockedEscrow->currency_id;
+                $transaction->before_charge = $request->seller_amount;
+                $transaction->amount        = $request->seller_amount;
+                $transaction->post_balance  = $lw->balance;
+                $transaction->charge        = 0;
+                $transaction->trx_type      = '+';
+                $transaction->charge_type   = '+';
+                $transaction->remark        = 'escrow_amount_received';
+                $transaction->details       = 'Disputed escrow amount added';
+                $transaction->trx           = $trx;
+                $transaction->save();
+
+                $sellerPostBalance = $lw->balance;
+            }
+
+            $lockedEscrow->status         = $request->status;
+            $lockedEscrow->dispute_charge = $charge;
+            $lockedEscrow->save();
+
+            $resolved = true;
+        });
+
+        if (!$resolved) {
+            $notify[] = ['error', 'This escrow has already been resolved'];
+            return back()->withNotify($notify);
         }
 
         $shortCodes = [
@@ -230,22 +276,22 @@ class EscrowController extends Controller
             'buyer_amount' => showAmount($request->buyer_amount, currencyFormat: false),
             'charge' => showAmount($charge, currencyFormat: false),
             'trx' => $trx,
-            'post_balance' => showAmount($transaction->post_balance, currencyFormat: false),
             'currency'     => $escrow->currency->currency_code,
         ];
 
-        $buyerShortCodes = $shortCodes;
-        $sellerShortCodes = $shortCodes;
-
-        $buyerShortCodes['post_balance'] = showAmount($buyerWallet->balance, currencyFormat: false);
-        $sellerShortCodes['post_balance'] = showAmount($sellerWallet->balance, currencyFormat: false);
+        $buyerShortCodes                  = $shortCodes;
+        $buyerShortCodes['post_balance']  = showAmount($buyerPostBalance ?? 0, currencyFormat: false);
+        $sellerShortCodes                 = $shortCodes;
+        $sellerShortCodes['post_balance'] = showAmount($sellerPostBalance ?? 0, currencyFormat: false);
 
         notify($buyer, 'ESCROW_ADMIN_ACTION', $buyerShortCodes);
         notify($seller, 'ESCROW_ADMIN_ACTION', $sellerShortCodes);
 
         $conversation = $escrow->conversation;
-        $conversation->status = Status::NO;
-        $conversation->save();
+        if ($conversation) {
+            $conversation->status = Status::NO;
+            $conversation->save();
+        }
 
         $notify[] = ['success', 'Escrow action taken successfully'];
         return back()->withNotify($notify);

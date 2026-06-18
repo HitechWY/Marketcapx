@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -501,69 +502,93 @@ class EscrowController extends Controller
 
     public function dispatchEscrow($id)
     {
+        // Ownership + precondition gate (also preserves the 404-on-replay UX once
+        // the escrow is no longer accepted).
+        $escrow = Escrow::where('buyer_id', auth()->id())->accepted()->findOrFail($id);
 
-        $escrow         = Escrow::where('buyer_id', auth()->id())->accepted()->findOrFail($id);
-        $escrow->status = Status::ESCROW_COMPLETED;
-        $escrow->save();
-
-        $amount = $escrow->amount;
         $seller = $escrow->seller;
 
+        // Ensure the destination wallet exists BEFORE locking it (a brand-new
+        // wallet row cannot be locked); the balance is mutated only under the lock.
         $wallet = Wallet::where('user_id', $seller->id)->where('currency_id', $escrow->currency_id)->where('user_type', 'USER')->first();
-
         if (!$wallet) {
             $wallet = createWallet($escrow->currency, $seller);
         }
 
-        $wallet->balance += $amount;
-        $wallet->save();
+        $trx         = getTrx();
+        $dispatched  = false;
+        $postBalance = null;
 
-        $trx                        = getTrx();
-        $transaction                = new Transaction();
-        $transaction->user_id       = $seller->id;
-        $transaction->wallet_id     = $wallet->id;
-        $transaction->currency_id   = $wallet->currency_id;
-        $transaction->user_type     = 'USER';
-        $transaction->before_charge = $amount;
-        $transaction->amount        = $amount;
-        $transaction->charge        = 0;
-        $transaction->post_balance  = $wallet->balance;
-        $transaction->trx_type      = '+';
-        $transaction->remark        = "escrow_payment_dispatched";
-        $transaction->details       = 'Escrow payment dispatched';
-        $transaction->trx           = $trx;
-        $transaction->save();
+        // Atomicity (audit F1): wrap the status flip + seller credit + charge +
+        // ledger in one transaction, lock the escrow row and re-check its status
+        // under the lock so a concurrent/duplicate dispatch cannot double-credit,
+        // and lock the seller wallet before mutating its balance.
+        DB::transaction(function () use ($escrow, $wallet, $trx, &$dispatched, &$postBalance) {
+            $lockedEscrow = Escrow::where('id', $escrow->id)->lockForUpdate()->first();
+            if (!$lockedEscrow || $lockedEscrow->status != Status::ESCROW_ACCEPTED) {
+                return; // already dispatched -> idempotent no-op
+            }
 
-        if ($escrow->seller_charge && $escrow->seller_charge > 0) {
-            $wallet->balance -= $escrow->seller_charge;
-            $wallet->save();
+            $lockedWallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+
+            $amount                 = $lockedEscrow->amount;
+            $lockedWallet->balance += $amount;
+            $lockedWallet->save();
 
             $transaction                = new Transaction();
-            $transaction->user_id       = $seller->id;
-            $transaction->wallet_id     = $wallet->id;
-            $transaction->currency_id   = $wallet->currency_id;
+            $transaction->user_id       = $lockedEscrow->seller_id;
+            $transaction->wallet_id     = $lockedWallet->id;
+            $transaction->currency_id   = $lockedWallet->currency_id;
             $transaction->user_type     = 'USER';
-            $transaction->before_charge = $escrow->seller_charge;
-            $transaction->amount        = $escrow->seller_charge;
-            $transaction->post_balance  = $wallet->balance;
+            $transaction->before_charge = $amount;
+            $transaction->amount        = $amount;
             $transaction->charge        = 0;
-            $transaction->trx_type      = '-';
-            $transaction->charge_type   = '+';
-            $transaction->remark        = "escrow_charge";
-            $transaction->details       = 'Deducted as escrow charge';
+            $transaction->post_balance  = $lockedWallet->balance;
+            $transaction->trx_type      = '+';
+            $transaction->remark        = "escrow_payment_dispatched";
+            $transaction->details       = 'Escrow payment dispatched';
             $transaction->trx           = $trx;
             $transaction->save();
-        }
 
-        notify($seller, 'ESCROW_PAYMENT_DISPATCHED', [
-            'title'         => $escrow->title,
-            'amount'        => showAmount($escrow->amount, currencyFormat: false),
-            'charge'        => showAmount($escrow->charge, currencyFormat: false),
-            'seller_charge' => showAmount($escrow->seller_charge, currencyFormat: false),
-            'trx'           => $trx,
-            'post_balance'  => showAmount($seller->balance, currencyFormat: false),
-            'currency'      => $escrow->currency->currency_code,
-        ]);
+            if ($lockedEscrow->seller_charge && $lockedEscrow->seller_charge > 0) {
+                $lockedWallet->balance -= $lockedEscrow->seller_charge;
+                $lockedWallet->save();
+
+                $transaction                = new Transaction();
+                $transaction->user_id       = $lockedEscrow->seller_id;
+                $transaction->wallet_id     = $lockedWallet->id;
+                $transaction->currency_id   = $lockedWallet->currency_id;
+                $transaction->user_type     = 'USER';
+                $transaction->before_charge = $lockedEscrow->seller_charge;
+                $transaction->amount        = $lockedEscrow->seller_charge;
+                $transaction->post_balance  = $lockedWallet->balance;
+                $transaction->charge        = 0;
+                $transaction->trx_type      = '-';
+                $transaction->charge_type   = '+';
+                $transaction->remark        = "escrow_charge";
+                $transaction->details       = 'Deducted as escrow charge';
+                $transaction->trx           = $trx;
+                $transaction->save();
+            }
+
+            $lockedEscrow->status = Status::ESCROW_COMPLETED;
+            $lockedEscrow->save();
+
+            $dispatched  = true;
+            $postBalance = $lockedWallet->balance;
+        });
+
+        if ($dispatched) {
+            notify($seller, 'ESCROW_PAYMENT_DISPATCHED', [
+                'title'         => $escrow->title,
+                'amount'        => showAmount($escrow->amount, currencyFormat: false),
+                'charge'        => showAmount($escrow->charge, currencyFormat: false),
+                'seller_charge' => showAmount($escrow->seller_charge, currencyFormat: false),
+                'trx'           => $trx,
+                'post_balance'  => showAmount($postBalance, currencyFormat: false),
+                'currency'      => $escrow->currency->currency_code,
+            ]);
+        }
 
         $notify[] = ['success', 'Escrow payment dispatched successfully'];
         return back()->withNotify($notify);
