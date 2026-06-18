@@ -7,11 +7,7 @@
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-lg-12">
-                    <div class="account-wrapper">
-                        <div class="left bg_img" style="background-image: url('{{ frontendImage('login', @$content->background_image, '768x1200') }}');">
-                        </div>
-                        <div class="right">
-                            <div class="inner">
+                    <x-ui.auth-card :image="frontendImage('login', @$content->background_image, '768x1200')">
                                 <div class="text-center">
                                     <h2 class="title">{{ __($pageTitle) }}</h2>
                                     <p class="font-size--14px mt-1 fw-bold">@lang('Welcome to') {{ __(gs('site_name')) }}</p>
@@ -44,9 +40,7 @@
                                 <p class="font-size--14px text-center">@lang('Haven\'t an account?')
                                     <a href="{{ route('user.register') }}">@lang('Registration here').</a>
                                 </p>
-                            </div>
-                        </div>
-                    </div>
+                    </x-ui.auth-card>
                 </div>
             </div>
         </div>
