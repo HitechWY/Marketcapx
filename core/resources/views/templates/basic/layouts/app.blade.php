@@ -51,6 +51,21 @@
 
     @stack('style')
 
+    {{-- Material M5: sensitive-UI visual layer for the IN-APP payment pages
+         (deposit confirm/manual, invoice payment, make-payment) which render
+         inside the dashboard masters. Route-gated so it never loads on public/
+         auth/dashboard-home/admin. Loads after the dashboard Material layer so
+         the payment-specific polish wins. Presentation only — no form contract,
+         gateway, amount or route behaviour is touched. (The hosted-checkout
+         pages get this layer via checkout_master, not here.) --}}
+    @if (request()->routeIs(
+        'user.deposit.*', 'agent.deposit.*', 'merchant.deposit.*',
+        'user.payment', 'user.payment.done',
+        'invoice.payment', 'user.invoice.payment.*',
+        'deposit.app.confirm'))
+        <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-sensitive.css') }}?v=1">
+    @endif
+
     <link href="{{ asset(activeTemplate(true) . 'css/color.php') }}?color={{ gs('base_color') }}" rel="stylesheet" />
     @stack('header-scrip-lib')
 </head>

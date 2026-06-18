@@ -1,0 +1,42 @@
+/* =====================================================================
+   MarketCap X — Material sensitive-UI visual layer (M5)
+   ---------------------------------------------------------------------
+   CHECKOUT / PAYMENT-SENSITIVE PAGES ONLY. Loaded from exactly two places:
+     1. layouts/checkout_master.blade.php (the standalone hosted-checkout
+        layout used by api_payment/* — it otherwise has no Material tokens, so
+        material-tokens.css is linked alongside this file there);
+     2. layouts/app.blade.php @push('style'), route-gated to the authenticated
+        payment routes (deposit confirm/manual, invoice payment, make-payment),
+        which render inside the dashboard masters.
+   It never loads on public marketing, auth, dashboard-home, or admin.
+
+   HIGH-RISK AREA — this layer is ADDITIVE and THEME-INDEPENDENT (the M4 admin
+   approach): it adds Material SHAPE / ELEVATION / MOTION / FOCUS-VISIBLE and
+   chip-badge styling on top of the existing payment UI. It does NOT repaint
+   surfaces onto theme-dependent --md-sys roles, because the hosted checkout
+   has a merchant-configurable light/dark variant (.checkout-wrapper--dark) and
+   its own merchant main.css base — repainting would risk contrast clashes.
+
+   PRESENTATION ONLY. This file edits ZERO Blade markup. No payment form
+   contract, gateway selection, amount/currency/wallet/reference field, hidden
+   field, CSRF, button value, validation, route, or backend behaviour is
+   touched. PCI card-entry forms (Authorize/Checkout/Stripe/NMI) and the
+   auto-submit redirect are intentionally NOT given any payment-specific styling
+   here — they are frozen (see core/docs MATERIAL notes).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Payment-scoped accessible focus ring. Scoped to the two payment roots
+   (.checkout-section for hosted checkout, .add-money-card for in-app deposit)
+   so it only affects payment surfaces. Additive — no control behaviour change.
+   --------------------------------------------------------------------- */
+.checkout-section a:focus-visible,
+.checkout-section button:focus-visible,
+.checkout-section .form--control:focus-visible,
+.add-money-card a:focus-visible,
+.add-money-card button:focus-visible,
+.add-money-card .form--control:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary, #336699);
+    outline-offset: 2px;
+    border-radius: var(--md-sys-shape-corner-xs, 4px);
+}
