@@ -80,15 +80,20 @@
     color: var(--md-sys-color-on-surface);
 }
 
-/* Active item → primary-container "pill", the M3 navigation-selected state. */
+/* Active item → primary-container "pill", the M3 navigation-selected state.
+   color.php forces the active link text to the brand primary with !important
+   (selector `.sidebar-menu__item.active .sidebar-menu__link`, specificity 0,3,0),
+   which on the primary-container fill measures only ~2.9:1. Our selector is
+   0,4,0 (the .agent-dashboard prefix), so an !important on-primary-container
+   text wins and restores the M3 selected-state contrast. Justified override. */
 .agent-dashboard .sidebar-menu__item.active .sidebar-menu__link {
     background-color: var(--md-sys-color-primary-container);
-    color: var(--md-sys-color-on-primary-container);
+    color: var(--md-sys-color-on-primary-container) !important;
     border-radius: var(--md-sys-shape-corner-sm);
 }
 
 .agent-dashboard .sidebar-menu__item.active .sidebar-menu__link i {
-    color: var(--md-sys-color-on-primary-container);
+    color: var(--md-sys-color-on-primary-container) !important;
 }
 
 /* ---------------------------------------------------------------------
