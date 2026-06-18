@@ -33,5 +33,5 @@
          Static ?v= cache-bust so returning visitors fetch fresh after a deploy
          (bump this when public-redesign.css changes). filemtime() is avoided —
          the cPanel split layout makes public_path() resolve to a missing dir. --}}
-    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/public-redesign.css') }}?v=4">
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/public-redesign.css') }}?v=5">
 @endpush

@@ -501,3 +501,307 @@ body {
         transition: none;
     }
 }
+
+/* #####################################################################
+   PHASE 5 — Public conversion polish (public marketing only)
+   Appended AFTER all Phase 2/3/4 blocks and the reduced-motion guard above.
+   Each Phase-5 slice is self-contained and carries its OWN
+   prefers-reduced-motion guard, so NO existing rule is edited (purely
+   additive). Same constraints as the rest of this file: scoped to
+   .main-wrapper/.header/.hero/.footer, token-driven, loaded before
+   color.php so the live brand colour is never overridden. !important is
+   used ONLY to defeat a Bootstrap utility declared !important (documented
+   inline at each use, same precedent as the .bg-white rule above).
+   #####################################################################
+
+   ----- Slice B — Hero conversion (eyebrow badge, fluid title, CTA hierarchy)
+   The banner markup is unchanged; we restyle the existing inner elements only
+   (.hero__subtitle / .hero__title / .hero__des / .btn--group). No section
+   padding/height change (the header overlaps the hero — see Phase 2 note). */
+
+/* Eyebrow: promote the plain uppercase label to a premium brand "pill" so the
+   hero opens with a clear positioning chip (a fintech hero convention). The
+   label carries Bootstrap's .d-inline (display:inline !important); a pill needs
+   inline-block to take vertical padding, so this single property must override
+   that utility — no lower-specificity alternative exists. */
+.hero .hero__subtitle {
+    display: inline-block !important;
+    padding: 0.45em 1.1em;
+    border-radius: var(--ds-radius-pill);
+    background-color: rgba(var(--ds-color-primary-rgb), 0.12);
+    border: 1px solid rgba(var(--ds-color-primary-rgb), 0.30);
+    color: var(--pb-text);
+    line-height: 1;
+}
+
+/* Fluid headline: scale the hero title with the viewport for a stronger
+   above-the-fold without a media-query ladder. clamp() stays bounded on both
+   phone and ultra-wide, so it also prevents overflow. (No transition →
+   reduced-motion safe. Loads after main.css → wins on source order.) */
+.hero .hero__title {
+    font-size: clamp(2rem, 1.35rem + 3.1vw, 3.5rem);
+    letter-spacing: -0.02em;
+    font-weight: var(--ds-font-weight-bold);
+}
+
+/* Description: lift it from the Phase-2 0.9 opacity to full strength and size it
+   up one step, so the value proposition reads as primary supporting copy. */
+.hero .hero__des {
+    opacity: 1;
+    font-size: var(--ds-font-size-lg);
+}
+
+/* CTA hierarchy: the primary (.btn--custom) already carries the solid brand
+   fill + resting/hover glow (Phase 2/3). Frame the secondary video action as a
+   ghost button so the pair reads as a clear primary/secondary choice instead of
+   "button + bare link". */
+.hero .btn--group .video-btn {
+    padding: 0.62em 1.4em;
+    border: 1px solid var(--pb-border-strong);
+    border-radius: var(--ds-radius-pill);
+    transition: border-color var(--ds-transition-fast),
+                background-color var(--ds-transition-fast),
+                opacity var(--ds-transition-fast);
+}
+
+.hero .btn--group .video-btn:hover {
+    border-color: rgba(var(--ds-color-primary-rgb), 0.50);
+    background-color: rgba(var(--ds-color-primary-rgb), 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero .btn--group .video-btn {
+        transition: none;
+    }
+}
+
+/* ----- Slice C — Trust / security / value treatment -----
+   Sharpen the service / feature / why-choose / overview "proof points" so the
+   benefit triples read as crafted fintech trust signals. Surfaces + hover lift
+   already come from Phase 3; here we add icon badges, a brand section divider,
+   and an accented stats band. No new content/markup/transitions, no layout
+   shift — the hover tints are bound to :hover state (instant), so this slice
+   adds nothing for the reduced-motion guard to disable. */
+
+/* Dark-theme completeness (foundational): main.css declares `section {
+   background-color:#fff }` (specificity 0,0,1), and Phase 3 only darkened the
+   NAMED surface utilities (.section--bg/.section--bg2/.bg-white). That left the
+   image-backed and plain content sections (why-choose-us, overview, testimonial,
+   the secondary about band) sitting on white — a gap against the premium-black
+   identity, and the reason their benefit content reads as a bright band. Default
+   every PUBLIC section to the dark base (image-backed sections paint their image
+   over it), then re-assert the elevated .section--bg surface so its subtle
+   elevation is preserved. Scoped under .main-wrapper, so dashboards/admin/auth
+   (different layout, this file not loaded) are never affected. */
+.main-wrapper section {
+    background-color: var(--pb-bg);
+}
+
+.main-wrapper section.section--bg {
+    background-color: var(--pb-surface);
+}
+
+/* Icon badges: wrap each card icon (a 66px font icon for service, a 65px img
+   for feature/choose) in a consistent brand-tinted chip. Padding-based so it
+   fits any icon without clipping; inline-flex keeps it centered inside the
+   centered service cards and left-aligned in the others, automatically. */
+.main-wrapper .service-card__icon,
+.main-wrapper .feaure-card__icon,
+.main-wrapper .choose-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--ds-space-4);
+    border-radius: var(--ds-radius-lg);
+    background-color: rgba(var(--ds-color-primary-rgb), 0.12);
+    border: 1px solid rgba(var(--ds-color-primary-rgb), 0.22);
+}
+
+/* Brighten the badge as the card lifts (pairs with the Phase 3 icon
+   translate/scale hover, which is preserved). */
+.main-wrapper .service-card:hover .service-card__icon,
+.main-wrapper .feaure-card:hover .feaure-card__icon,
+.main-wrapper .choose-card:hover .choose-card__icon {
+    background-color: rgba(var(--ds-color-primary-rgb), 0.20);
+    border-color: rgba(var(--ds-color-primary-rgb), 0.40);
+}
+
+/* Section divider: a short brand underline under centered section headings for
+   clearer hierarchy. Scoped to .section-header (service / why-choose-us are
+   text-center) so left-aligned titles elsewhere are untouched. main.css
+   declares no ::after on .section-title, so this is purely additive. */
+.main-wrapper .section-header .section-title {
+    position: relative;
+    padding-bottom: var(--ds-space-4);
+}
+
+.main-wrapper .section-header .section-title::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 56px;
+    height: 3px;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-color-primary);
+    transform: translateX(-50%);
+}
+
+/* Stats band: a brand left-accent + bolder number on each overview counter, so
+   the figures read as proof points rather than plain text. */
+.main-wrapper .overview-single {
+    padding-left: var(--ds-space-4);
+    border-left: 2px solid rgba(var(--ds-color-primary-rgb), 0.55);
+}
+
+.main-wrapper .overview-single .overview-number {
+    font-weight: var(--ds-font-weight-bold);
+}
+
+/* ----- Slice D — Services / features / cards hierarchy -----
+   Tidy the benefit grids so each three-up set scans as a unit. CSS-only; no
+   markup/content/layout-structure change, no transitions (nothing for the
+   reduced-motion guard to disable). */
+
+/* Equal-height cards: Bootstrap `.row` is display:flex with align-items:stretch,
+   so the columns already match the tallest; making the card fill its column
+   (height:100%) gives even card bottoms regardless of copy length, instead of
+   ragged edges. The service card's absolute ::before/::after/.dotted-wrapper
+   decorations are positioned to the card box and stretch cleanly with it. */
+.main-wrapper .service-card,
+.main-wrapper .choose-card,
+.main-wrapper .feaure-card {
+    height: 100%;
+}
+
+/* Card titles: unify weight + slight negative tracking across the three card
+   types for a clearer, more scannable heading rhythm. Colour is left to the
+   existing main.css/Phase-3 rules (service title #fff, choose/feature lightened
+   by Phase 3) so contrast is unchanged. */
+.main-wrapper .service-card__content .title,
+.main-wrapper .choose-card__content .title,
+.main-wrapper .feaure-card__content .title {
+    font-weight: var(--ds-font-weight-semibold);
+    letter-spacing: -0.01em;
+}
+
+/* ----- Slice E — Blog / content readability -----
+   Listing card affordance, long-form article measure/rhythm, and a fix for the
+   share row whose dividers/borders main.css draws in rgba(0,0,0,.15) — invisible
+   on the dark theme. CSS-only; article HTML/content untouched. */
+
+/* Listing: clearer, tighter card heading (cards are already dark-glass +
+   equal-height from Phase 3 / Slice D). */
+.main-wrapper .blog-card .blog-title a {
+    font-weight: var(--ds-font-weight-semibold);
+    letter-spacing: -0.01em;
+}
+
+/* Article body: looser leading, a comfortable reading measure on the text
+   paragraph, paragraph spacing, scaled/rounded inline images, and heading
+   rhythm (the body renders arbitrary CMS HTML, so style common descendants).
+   Colour is left to the Phase-3 text rules so contrast is unchanged. */
+.main-wrapper .blog-details-content {
+    line-height: var(--ds-line-height-loose);
+}
+
+.main-wrapper .blog-details-content p {
+    max-width: 72ch;
+    margin-bottom: var(--ds-space-5);
+}
+
+.main-wrapper .blog-details-content :is(h2, h3, h4) {
+    margin-top: var(--ds-space-6);
+    margin-bottom: var(--ds-space-3);
+    font-weight: var(--ds-font-weight-semibold);
+}
+
+.main-wrapper .blog-details-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--ds-radius-md);
+}
+
+.main-wrapper .blog-details-title {
+    line-height: var(--ds-line-height-tight);
+    letter-spacing: -0.02em;
+}
+
+/* Share row: main.css draws the divider lines (.post-share) and icon borders
+   (.post-share li a) in rgba(0,0,0,.15) — invisible on dark. Re-draw as hairline
+   light borders so the affordance reads, with a brand hover. */
+.main-wrapper .post-share {
+    border-top-color: var(--pb-border);
+    border-bottom-color: var(--pb-border);
+}
+
+.main-wrapper .post-share li a {
+    border-color: var(--pb-border);
+    transition: color var(--ds-transition-fast),
+                border-color var(--ds-transition-fast),
+                background-color var(--ds-transition-fast);
+}
+
+.main-wrapper .post-share li a:hover {
+    border-color: rgba(var(--ds-color-primary-rgb), 0.50);
+    background-color: rgba(var(--ds-color-primary-rgb), 0.10);
+}
+
+/* Recent-posts sidebar: hover affordance on each post title. */
+.main-wrapper .blog-sidebar .s-post__title a {
+    transition: color var(--ds-transition-fast);
+}
+
+.main-wrapper .blog-sidebar .s-post__title a:hover {
+    color: var(--ds-color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .main-wrapper .post-share li a,
+    .main-wrapper .blog-sidebar .s-post__title a {
+        transition: none;
+    }
+}
+
+/* ----- Slice F — Footer / contact conversion polish -----
+   Bring the footer into the premium-black theme and tidy the contact panel.
+   CSS-only; brand-coloured elements (cta-wrapper, link/icon hovers) are left to
+   color.php, and the contact FORM's method/action/field names/validation are
+   NOT touched — styling only. No transitions added. */
+
+/* Footer surfaces: main.css predates the Phase 3 dark theme and paints the
+   footer in structural navy (.footer #002046, .footer__bottom #001937,
+   .footer-contact-wrapper #002c60), which reads blue against the black body
+   (the <footer> isn't a <section>, so the Slice C base rule doesn't reach it).
+   Re-base them on the theme surfaces; the footer keeps its background image on
+   top. Scoped under .main-wrapper (dashboards/admin/auth unaffected). */
+.main-wrapper .footer {
+    background-color: var(--pb-bg);
+}
+
+.main-wrapper .footer__bottom {
+    background-color: var(--pb-bg);
+    border-top: 1px solid var(--pb-border);
+}
+
+/* Contact trust band: recolour the navy strip behind the email/phone/address
+   cards to an elevated dark surface, so the footer contact details read as a
+   deliberate trust zone rather than a blue stripe. (Recolour only — no
+   border/radius on the Bootstrap .row to avoid its negative-gutter overflow.) */
+.main-wrapper .footer-contact-wrapper {
+    background-color: var(--pb-surface);
+}
+
+/* Contact page: give the form panel a themed hairline border to match the dark
+   surface it already gets from its .section--bg class (Phase 3). Inputs are
+   already dark with a brand focus ring from Phase 2/3. */
+.main-wrapper .box-shadow {
+    border: 1px solid var(--pb-border);
+}
+
+/* Form labels: main.css colours form labels #535353 (dark grey), which is
+   near-invisible on the dark form panel — lift them to the light theme text so
+   the field labels read. Public scope only; field markup/contracts untouched. */
+.main-wrapper .form-group label {
+    color: var(--pb-text);
+}
