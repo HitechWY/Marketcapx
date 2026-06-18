@@ -42,3 +42,116 @@
 .main-wrapper .d-widget .las {
     line-height: 1;
 }
+
+/* =====================================================================
+   M3 (D) — Dashboard shell: sidebar, topbar, dropdowns (merchant/agent share
+   the .agent-dashboard shell; the user dashboard reuses the .header topbar).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   2. Sidebar → Material navigation surface with elevation + shape.
+   --------------------------------------------------------------------- */
+.agent-dashboard .d-sidebar {
+    background-color: var(--md-sys-color-surface-container-low);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+/* Section labels adopt the M3 label typescale + muted role. */
+.agent-dashboard .sidebar-menu__header {
+    color: var(--md-sys-color-on-surface-variant);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+}
+
+/* Nav links → rounded targets with a Material state layer on hover/focus. */
+.agent-dashboard .sidebar-menu__link {
+    color: var(--md-sys-color-on-surface-variant);
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .sidebar-menu__link:hover,
+.agent-dashboard .sidebar-menu__link:focus-visible {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+    color: var(--md-sys-color-on-surface);
+}
+
+/* Active item → primary-container "pill", the M3 navigation-selected state. */
+.agent-dashboard .sidebar-menu__item.active .sidebar-menu__link {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    border-radius: var(--md-sys-shape-corner-sm);
+}
+
+.agent-dashboard .sidebar-menu__item.active .sidebar-menu__link i {
+    color: var(--md-sys-color-on-primary-container);
+}
+
+/* ---------------------------------------------------------------------
+   3. Topbar → Material surface with a hairline + low elevation.
+   --------------------------------------------------------------------- */
+.agent-dashboard .dashboard-top-nav {
+    background-color: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+/* Hamburger / close buttons → Material icon-button shape + state. */
+.agent-dashboard .sidebar-open-btn,
+.agent-dashboard .sidebar-close-btn {
+    border-radius: var(--md-sys-shape-corner-full);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .sidebar-open-btn:hover,
+.agent-dashboard .sidebar-open-btn:focus-visible {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+/* ---------------------------------------------------------------------
+   4. User-menu dropdown (shared by all three topbars) → Material menu
+   surface: elevation, shape, on-surface text. Scoped under the dashboard
+   roots so it only affects the dashboards (this file is dashboard-only anyway).
+   --------------------------------------------------------------------- */
+.agent-dashboard .header-user-menu,
+.main-wrapper .header-user-menu {
+    background-color: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-md);
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.agent-dashboard .header-user-menu li a,
+.main-wrapper .header-user-menu li a {
+    border-radius: var(--md-sys-shape-corner-xs);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .header-user-menu li a:hover,
+.main-wrapper .header-user-menu li a:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+/* ---------------------------------------------------------------------
+   5. Dashboard body breathing room + page section headings.
+   --------------------------------------------------------------------- */
+.agent-dashboard .agent-dashboard__body h6,
+.main-wrapper .custom--card h6 {
+    color: var(--md-sys-color-on-surface);
+}
+
+/* Respect reduced motion for the shell transitions. */
+@media (prefers-reduced-motion: reduce) {
+    .agent-dashboard .sidebar-menu__link,
+    .agent-dashboard .sidebar-open-btn,
+    .agent-dashboard .sidebar-close-btn,
+    .agent-dashboard .header-user-menu li a,
+    .main-wrapper .header-user-menu li a {
+        transition: none;
+    }
+}
