@@ -19,18 +19,10 @@
         <div class="row gy-4">
             @foreach($elements as $element)
                 <div class="col-lg-4 col-md-6 wow fadeInUp" data-wow-duration="0.3" data-wow-delay="0.1s">
-                    <div class="service-card text-center">
-                        <div class="dotted-wrapper"></div>
-                        <div class="service-card__icon">
-                            @php
-                                echo @$element->data_values->service_icon;
-                            @endphp
-                        </div>
-                        <div class="service-card__content mt-4">
-                            <h3 class="title">{{ @$element->data_values->title }}</h3>
-                            <p class="mt-3">{{ __(@$element->data_values->description) }}</p>
-                        </div>
-                    </div><!-- service-card end -->
+                    <x-ui.feature-card :title="@$element->data_values->title" align="center">
+                        <x-slot:icon>@php echo @$element->data_values->service_icon; @endphp</x-slot:icon>
+                        {{ __(@$element->data_values->description) }}
+                    </x-ui.feature-card>
                 </div>
             @endforeach
         </div>

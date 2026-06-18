@@ -50,6 +50,78 @@
 .md-chip--tone-primary { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
 
 /* ---------------------------------------------------------------------
+   1b. Feature card (x-ui.feature-card) — the reusable icon + title + text
+   surface adopted by the rebuilt service / feature / why-choose-us sections.
+   Equal-height elevated Material card with a brand-tinted icon badge and a
+   gentle hover lift. Theme-agnostic: uses --md-sys-* surface/role tokens, so
+   it reads correctly on both the dark and light public sections.
+   --------------------------------------------------------------------- */
+.md-feature-card {
+    height: 100%;
+    transition: transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard),
+                box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+}
+
+.md-feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+.md-feature-card .md-card__body {
+    padding: 2rem 1.75rem;
+}
+
+.md-feature-card--center .md-card__body {
+    text-align: center;
+}
+
+.md-feature-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1.25rem;
+    border-radius: var(--md-sys-shape-corner-lg);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-size: 30px;
+    line-height: 1;
+}
+
+.md-feature-card--center .md-feature-card__icon {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.md-feature-card__icon i {
+    font-size: 30px;
+    color: inherit;
+}
+
+.md-feature-card__icon img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.md-feature-card__title {
+    margin: 0 0 0.5rem;
+    font: var(--md-sys-typescale-title-large);
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-feature-card__text {
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .md-feature-card { transition: none; }
+    .md-feature-card:hover { transform: none; }
+}
+
+/* ---------------------------------------------------------------------
    2. Public footer — modern rebuild pilot. The footer keeps its CMS image
    background + dark treatment; the three contact tiles are now .md-card
    surfaces and the CTA is an .md-button. Give the cards a translucent
