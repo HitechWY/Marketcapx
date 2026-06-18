@@ -56,3 +56,43 @@ CSS brace balance · `node --check` if JS changed · PHPUnit (42/1) · `route:li
 (796) · in-process smoke (/ /contact /blogs /announces blog-detail policy
 /user/login /admin checkout = 200; dashboards 302) · contact + subscribe contracts
 unchanged. Screenshots kept outside the repo; `core/.env.local` untracked.
+
+## Slices delivered
+
+- **B** `9c8e60b` inventory + plan (doc).
+- **C/D/E** `99b051b` `x-ui.stat`/`brand-logo-card`/`testimonial-card`;
+  overview/business rebuilt; testimonial content wrapped (slick child kept).
+- **E** `dd6304c` cookie-consent Allow button → `<x-ui.button>` (`.policy` hook kept).
+
+No JS file was changed in R2 — only Blade markup that preserves every JS hook.
+
+## Verification results (branch HEAD)
+
+- **CRITICAL (sliders still work):** with real JS in a browser, `.brand-slider`,
+  `.testimonial-slide-area .thumb-slider` and `.content-slider` all report
+  `slick-initialized`; the testimonial-card quote renders inside the active slide;
+  **0 console errors.** The `.single-slide` slick children were never restructured.
+- PHPUnit **42 passed / 1 skipped**; `route:list` **796**; smoke (/ /contact /blogs
+  /announces /user/login /admin checkout = 200; dashboards 302).
+- Rendered DOM: 0 legacy `overview-single`/`coutomer-single`; the only remaining
+  public `btn--base` are the two frozen form submit buttons (contact, subscribe).
+- diff --check clean; forbidden scan = frontend-only; `core/.env.local` untracked.
+
+## Visual QA results
+
+- **0px horizontal overflow** on home at **1440 / 1024 / 768 / 360**.
+- **Light + dark** both verified: dark-theme stat values render white on the
+  overview overlay (AAA), testimonial text near-white (#e3e2e6) on dark (AA+),
+  brand-logo chips use a deliberate light surface so client logos stay legible on
+  the dark theme; focus state-layer active; every new transition has a
+  `prefers-reduced-motion` guard.
+- Screenshots (home 375, 1440 light, 1440 dark) kept outside the repo.
+
+## Next phase recommendation
+
+R3 candidates (all still presentation-only, separate branch, CTO-gated): (a) a
+shared `x-ui.section`/`x-ui.section-heading` to DRY the `.section-header` blocks;
+(b) optional CSS-only polish of the frozen brand/testimonial sliders without
+markup change; (c) a separate, explicitly-scoped effort for auth/dashboard/admin
+componentization (out of the public scope of R1b/R2). Backend, Laravel upgrade and
+money-domain remain frozen and out of scope.
