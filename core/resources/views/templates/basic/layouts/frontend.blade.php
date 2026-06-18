@@ -51,4 +51,11 @@
     @if (request()->routeIs('user.login', 'user.register', 'user.password.request', 'user.password.reset', 'user.password.code.verify'))
         <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-auth.css') }}?v=1">
     @endif
+
+    {{-- Rebuild R1 foundation: the new Blade component design layer (material-app.css)
+         styling the M0 .md-* components that resources/views/components/ui/* emit.
+         Loaded on the whole frontend layout because the rebuilt footer (shared by
+         public + auth pages) uses the new components. Component-scoped — inert
+         except where .md-* components render. Presentation only. --}}
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-app.css') }}?v=1">
 @endpush
