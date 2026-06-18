@@ -215,3 +215,89 @@
 .main-wrapper .account-wrapper .user-account-check .form-check-input:checked ~ label i {
     color: var(--md-sys-color-on-primary-container);
 }
+
+/* =====================================================================
+   M2 (D) — Password reset / onboarding polish + shared auth chrome.
+   Secure-password hint popup, the "agree to policy" checkbox, the auth
+   helper links, and the register "account exists" modal.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   8. Secure-password requirements popup (register + reset). Put it on a
+   Material surface so the requirement lines stay legible in both schemes.
+   Met/unmet line colours come from the theme's JS toggling — we only set the
+   container surface + the default (unmet) colour here.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .input-popup {
+    background-color: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-md);
+    box-shadow: var(--md-sys-elevation-2);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------------------------------------------------------------
+   9. "I agree with …" checkbox + policy links, and the helper links
+   (Forgot password / Registration here / Login here). Links adopt the
+   primary role so they read as actions in both schemes.
+   --------------------------------------------------------------------- */
+.main-wrapper .account-wrapper .form-check-label {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.main-wrapper .account-wrapper .form-check-input:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary);
+    outline-offset: 2px;
+}
+
+.main-wrapper .account-wrapper .account-form a,
+.main-wrapper .account-wrapper .inner > p a,
+.main-wrapper .account-wrapper .form-check-label a {
+    color: var(--md-sys-color-primary);
+    border-radius: var(--md-sys-shape-corner-xs);
+}
+
+.main-wrapper .account-wrapper .account-form a:hover,
+.main-wrapper .account-wrapper .inner > p a:hover,
+.main-wrapper .account-wrapper .form-check-label a:hover {
+    text-decoration: underline;
+}
+
+/* Keyboard focus is always visible on the auth links. */
+.main-wrapper .account-wrapper a:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   10. Register "you already have an account" modal → Material surface.
+   The brand button fills come from color.php; we only set the dialog
+   surface, shape and elevation.
+   --------------------------------------------------------------------- */
+#existModalCenter .modal-content {
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+#existModalCenter .modal-content h6 {
+    color: var(--md-sys-color-on-surface);
+}
+
+/* ---------------------------------------------------------------------
+   11. Respect reduced motion for every transition added in this file.
+   --------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .main-wrapper .account-wrapper .form--control,
+    .main-wrapper .account-wrapper .account-form .btn--base,
+    .main-wrapper .account-wrapper .social-login-btn,
+    .main-wrapper .account-wrapper .user-account-check label {
+        transition: none;
+    }
+
+    .main-wrapper .account-wrapper .account-form .btn--base:active {
+        transform: none;
+    }
+}
