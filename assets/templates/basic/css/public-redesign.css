@@ -762,3 +762,46 @@ body {
         transition: none;
     }
 }
+
+/* ----- Slice F — Footer / contact conversion polish -----
+   Bring the footer into the premium-black theme and tidy the contact panel.
+   CSS-only; brand-coloured elements (cta-wrapper, link/icon hovers) are left to
+   color.php, and the contact FORM's method/action/field names/validation are
+   NOT touched — styling only. No transitions added. */
+
+/* Footer surfaces: main.css predates the Phase 3 dark theme and paints the
+   footer in structural navy (.footer #002046, .footer__bottom #001937,
+   .footer-contact-wrapper #002c60), which reads blue against the black body
+   (the <footer> isn't a <section>, so the Slice C base rule doesn't reach it).
+   Re-base them on the theme surfaces; the footer keeps its background image on
+   top. Scoped under .main-wrapper (dashboards/admin/auth unaffected). */
+.main-wrapper .footer {
+    background-color: var(--pb-bg);
+}
+
+.main-wrapper .footer__bottom {
+    background-color: var(--pb-bg);
+    border-top: 1px solid var(--pb-border);
+}
+
+/* Contact trust band: recolour the navy strip behind the email/phone/address
+   cards to an elevated dark surface, so the footer contact details read as a
+   deliberate trust zone rather than a blue stripe. (Recolour only — no
+   border/radius on the Bootstrap .row to avoid its negative-gutter overflow.) */
+.main-wrapper .footer-contact-wrapper {
+    background-color: var(--pb-surface);
+}
+
+/* Contact page: give the form panel a themed hairline border to match the dark
+   surface it already gets from its .section--bg class (Phase 3). Inputs are
+   already dark with a brand focus ring from Phase 2/3. */
+.main-wrapper .box-shadow {
+    border: 1px solid var(--pb-border);
+}
+
+/* Form labels: main.css colours form labels #535353 (dark grey), which is
+   near-invisible on the dark form panel — lift them to the light theme text so
+   the field labels read. Public scope only; field markup/contracts untouched. */
+.main-wrapper .form-group label {
+    color: var(--pb-text);
+}
