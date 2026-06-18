@@ -441,6 +441,28 @@ body {
     background-color: #ffffff;
 }
 
+/* ----- Slice E — Inner pages (breadcrumb + dark form inputs) -----
+   Re-skin the existing main.css `.inner-hero::before` breadcrumb overlay from
+   navy to a premium near-black gradient + soft brand glow (keeps position/
+   z-index), and darken public form inputs to match the theme. The contact
+   form's method/action/field names/IDs are NOT touched — styling only. */
+.inner-hero::before {
+    background:
+        radial-gradient(100% 130% at 82% 0%, var(--pb-glow-soft) 0%, transparent 52%),
+        linear-gradient(180deg, rgba(10, 11, 15, 0.90) 0%, rgba(10, 11, 15, 0.97) 100%);
+    opacity: 1;
+}
+
+.main-wrapper .form--control {
+    background-color: var(--pb-card-2);
+    border: 1px solid var(--pb-border);
+    color: var(--pb-text);
+}
+
+.main-wrapper .form--control::placeholder {
+    color: var(--pb-text-muted);
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
     .main-wrapper .brand-item,
