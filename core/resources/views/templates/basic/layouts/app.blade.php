@@ -24,6 +24,8 @@
 
     <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/custom.css') }}">
 
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/design-system.css') }}">
+
     @stack('style')
 
     <link href="{{ asset(activeTemplate(true) . 'css/color.php') }}?color={{ gs('base_color') }}" rel="stylesheet" />

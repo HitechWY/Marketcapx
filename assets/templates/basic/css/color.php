@@ -35,6 +35,11 @@ if (!$secondColor or !checkhexcolor2($secondColor)) {
 
 ?>
 
+/* Design-system brand tokens, set from the admin-configured base color so
+   --ds-color-primary tracks the live theme (see assets/.../css/design-system.css
+   and core/docs/DESIGN-SYSTEM.md). Variable declarations only — no visual change. */
+:root{--ds-color-primary:<?php echo $color; ?>;--ds-color-secondary:<?php echo $secondColor; ?>;}
+
 .btn--base,.hero__subtitle::before,.hero__subtitle::after,.video-btn .icon::before, .video-btn .icon::after,.video-btn .icon,.video-btn .icon::before, .video-btn .icon::after,.about-thumb .about-img-content,.service-card::after,.section-subtitle.border-left::before,.testimonial-slide-area .content-slider .slick-arrow,.blog-card .post-time,.cta-wrapper,.footer-widget__title::before,.bg--base,.form-check-input:checked,.d-widget.curve--shape::before,.quick-link-card .icon::before,.header .main-menu li .sub-menu li a::before,.pagination .page-item.active .page-link,.pagination .page-item .page-link:hover,.sidebar-menu__header::before{
 background-color: <?php echo $color; ?> !important
 }
