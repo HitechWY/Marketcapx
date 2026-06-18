@@ -156,6 +156,23 @@
     box-shadow: var(--ds-shadow-md);
 }
 
+/* =====================================================================
+   Slice 2 — Hero / banner polish (CSS-only; builds on the hero inner-element
+   rhythm from Slice 1). No section padding/height or content changes.
+   ===================================================================== */
+.hero .btn--group {
+    flex-wrap: wrap;            /* never let the CTA row overflow on small screens */
+    align-items: center;
+}
+
+.hero .btn--group .btn--custom {
+    min-width: 180px;           /* balanced primary CTA width */
+}
+
+.hero .hero__des {
+    opacity: 0.9;               /* gentle hierarchy below the heading */
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
     .header .main-menu li a::after,
