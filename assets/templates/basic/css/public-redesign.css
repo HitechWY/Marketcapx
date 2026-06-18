@@ -1,0 +1,172 @@
+/* =====================================================================
+   MarketCap X — Public UI redesign (Phase 2)
+   ---------------------------------------------------------------------
+   PRESENTATION-ONLY, ADDITIVE. Loaded ONLY from the public layout
+   (templates/basic/layouts/frontend.blade.php) via @push('style'), so it
+   cannot affect dashboards (user/agent/merchant), checkout, admin, or auth.
+   It loads AFTER main.css/custom.css/design-system.css, so token-based
+   rules win on source order — NO !important is used. It loads BEFORE
+   color.php, so the live brand (!important) colours from gs('base_color')
+   still take precedence; we never override brand background/colour here.
+
+   Slice 1 — Public chrome foundation (header, navigation, hero, footer,
+   public CTA buttons). Theme-agnostic polish only (spacing, radius,
+   shadow, transitions, hover micro-interactions). We deliberately do NOT
+   set background/text colours on themed chrome so the admin-configured
+   (currently dark) theme and live brand colour are preserved.
+   Consumes Phase 1 --ds-* tokens (see design-system.css).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Header / navigation
+   --------------------------------------------------------------------- */
+.header .header__top {
+    padding-block: var(--ds-space-2);
+}
+
+.header .header-info-list li a,
+.header .social-links li a {
+    transition: opacity var(--ds-transition-fast), transform var(--ds-transition-fast);
+}
+
+.header .header-info-list li a:hover,
+.header .social-links li a:hover {
+    opacity: 0.85;
+}
+
+.header .header__bottom {
+    padding-block: var(--ds-space-3);
+    box-shadow: var(--ds-shadow-sm);
+}
+
+/* Nav links: smooth colour/opacity transition + animated underline that
+   uses the live brand colour. Colour itself is left to the theme. */
+.header .main-menu li a {
+    position: relative;
+    transition: color var(--ds-transition-fast);
+}
+
+.header .main-menu li a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 2px;
+    width: 0;
+    background-color: var(--ds-color-primary);
+    transition: width var(--ds-transition-base);
+}
+
+.header .main-menu li a:hover::after {
+    width: 100%;
+}
+
+/* ---------------------------------------------------------------------
+   Buttons (public chrome only — scoped under public wrappers).
+   We restyle shape/spacing/motion, NOT the brand background/colour.
+   --------------------------------------------------------------------- */
+.header .btn,
+.nav-right .btn,
+.hero .btn,
+.footer .btn,
+.cta-wrapper .btn {
+    border-radius: var(--ds-radius-pill);
+    transition: transform var(--ds-transition-fast), box-shadow var(--ds-transition-fast), opacity var(--ds-transition-fast);
+}
+
+.header .btn:hover,
+.nav-right .btn:hover,
+.hero .btn:hover,
+.footer .btn:hover,
+.cta-wrapper .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ds-shadow-md);
+}
+
+/* ---------------------------------------------------------------------
+   Hero / first view
+   NOTE: the hero section's own padding/height is intentionally left to
+   main.css — the header is positioned over the hero, so overriding
+   .hero padding pulls content under the header. We only enhance the
+   inner elements (type rhythm, description width, CTA spacing).
+   --------------------------------------------------------------------- */
+.hero .hero__subtitle {
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: var(--ds-font-weight-semibold);
+    font-size: var(--ds-font-size-sm);
+}
+
+.hero .hero__title {
+    line-height: var(--ds-line-height-tight);
+    margin-top: var(--ds-space-3);
+}
+
+.hero .hero__des {
+    line-height: var(--ds-line-height-loose);
+    max-width: 60ch;
+    margin-inline: auto;
+}
+
+.hero .btn--group {
+    gap: var(--ds-space-3);
+}
+
+.hero .video-btn .icon {
+    transition: transform var(--ds-transition-fast);
+}
+
+.hero .video-btn:hover .icon {
+    transform: scale(1.08);
+}
+
+/* ---------------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------------- */
+.footer .cta-wrapper {
+    border-radius: var(--ds-radius-lg);
+    box-shadow: var(--ds-shadow-lg);
+    padding: var(--ds-space-6);
+}
+
+.footer .footer-widget__title {
+    margin-bottom: var(--ds-space-4);
+}
+
+.footer .footer-link-list li {
+    margin-bottom: var(--ds-space-2);
+}
+
+.footer .footer-link-list li a {
+    transition: color var(--ds-transition-fast), padding-left var(--ds-transition-fast);
+}
+
+.footer .footer-link-list li a:hover {
+    padding-left: var(--ds-space-1);
+    color: var(--ds-color-primary);
+}
+
+.footer .footer-contact-card {
+    border-radius: var(--ds-radius-md);
+    transition: transform var(--ds-transition-fast), box-shadow var(--ds-transition-fast);
+}
+
+.footer .footer-contact-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--ds-shadow-md);
+}
+
+/* Respect users who prefer reduced motion — disable the micro-interactions. */
+@media (prefers-reduced-motion: reduce) {
+    .header .main-menu li a::after,
+    .header .btn,
+    .nav-right .btn,
+    .hero .btn,
+    .footer .btn,
+    .cta-wrapper .btn,
+    .hero .video-btn .icon,
+    .footer .footer-link-list li a,
+    .footer .footer-contact-card {
+        transition: none;
+    }
+}
