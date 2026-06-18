@@ -1,0 +1,45 @@
+/* =====================================================================
+   MarketCap X — Material admin visual layer (M4)
+   ---------------------------------------------------------------------
+   ADMIN PANEL ONLY. Loaded once from admin/layouts/master.blade.php via
+   @stack('style') (after assets/admin/css/app.css), so it never reaches the
+   public marketing pages, auth pages, the user/merchant/agent dashboards or
+   checkout — those use different layouts. material-tokens.css already loads
+   in the admin master, so the --md-sys-* SHAPE / ELEVATION / MOTION tokens
+   are available here.
+
+   Strategy: the admin panel is an established LIGHT theme (#4634ff accents,
+   white cards) with 80+ forms and many third-party widgets (select2, date
+   pickers, nicEdit, charts). To avoid contrast regressions, this layer is
+   ADDITIVE and THEME-INDEPENDENT: it adds Material shape, elevation, motion,
+   focus-visible and neutral state layers on top of the existing colours. It
+   does NOT repaint admin backgrounds onto the dark/light --md-sys surface
+   roles (full admin token theming is deferred). Everything is scoped under
+   .page-wrapper (the admin shell root) as defence-in-depth.
+
+   PRESENTATION ONLY — no markup, DOM, route, permission or form contract is
+   touched (this file edits zero Blade and changes no admin behaviour).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Admin-scoped accent + neutral state-layer helpers. We keep the admin's
+   own primary (#4634ff) as the accent so the Material polish harmonises with
+   the existing panel instead of introducing a second brand colour.
+   --------------------------------------------------------------------- */
+.page-wrapper {
+    --ma-accent: #4634ff;
+    --ma-state-hover: rgba(0, 0, 0, 0.04);
+    --ma-state-hover-strong: rgba(0, 0, 0, 0.06);
+    --ma-focus-ring: rgba(70, 52, 255, 0.45);
+}
+
+/* Smooth, accessible focus ring on interactive admin controls (additive;
+   does not change any control's behaviour). */
+.page-wrapper a:focus-visible,
+.page-wrapper button:focus-visible,
+.page-wrapper .nav-link:focus-visible,
+.page-wrapper .btn:focus-visible {
+    outline: 2px solid var(--ma-accent);
+    outline-offset: 2px;
+    border-radius: var(--md-sys-shape-corner-xs);
+}
