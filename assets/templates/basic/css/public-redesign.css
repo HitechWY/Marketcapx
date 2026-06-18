@@ -374,8 +374,39 @@ body {
     color: var(--pb-text-muted);
 }
 
+/* ----- Slice B — Hero + header premium treatment -----
+   Re-skin the EXISTING main.css `.hero::after` overlay (keeps its position/
+   inset/z-index:-1) from navy to a premium near-black gradient + a soft radial
+   brand glow, so the DB hero image reads as deep black with brand accent and
+   the white headline stays legible. */
+.hero::after {
+    background:
+        radial-gradient(120% 90% at 72% 18%, var(--pb-glow-soft) 0%, transparent 46%),
+        linear-gradient(180deg, rgba(10, 11, 15, 0.55) 0%, rgba(10, 11, 15, 0.88) 100%);
+}
+
+/* Primary hero CTA: resting brand glow + stronger glow on hover (the pill
+   radius + translateY lift come from the Phase 2 chrome rules). */
+.hero .btn--base.btn--custom {
+    box-shadow: 0 10px 30px var(--pb-glow-soft);
+}
+
+.hero .btn--base.btn--custom:hover {
+    box-shadow: 0 14px 38px var(--pb-glow);
+}
+
+/* Secondary hero action ("See How" video button): subtle ghost ring on dark. */
+.hero .video-btn {
+    transition: opacity var(--ds-transition-fast);
+}
+
+.hero .video-btn:hover {
+    opacity: 0.9;
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
+    .hero .video-btn,
     .main-wrapper .form--control,
     .main-wrapper .page-breadcrumb a,
     .main-wrapper .blog-card,
