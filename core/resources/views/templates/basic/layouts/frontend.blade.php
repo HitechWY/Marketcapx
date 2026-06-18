@@ -27,3 +27,8 @@
 @push('style-lib')
     <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/main.css') }}">
 @endpush
+
+@push('style')
+    {{-- Phase 2 public-only redesign layer; loads after main.css, before color.php. --}}
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/public-redesign.css') }}">
+@endpush

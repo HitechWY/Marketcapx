@@ -1,0 +1,322 @@
+/* =====================================================================
+   MarketCap X — Public UI redesign (Phase 2)
+   ---------------------------------------------------------------------
+   PRESENTATION-ONLY, ADDITIVE. Loaded ONLY from the public layout
+   (templates/basic/layouts/frontend.blade.php) via @push('style'), so it
+   cannot affect dashboards (user/agent/merchant), checkout, admin, or auth.
+   It loads AFTER main.css/custom.css/design-system.css, so token-based
+   rules win on source order — NO !important is used. It loads BEFORE
+   color.php, so the live brand (!important) colours from gs('base_color')
+   still take precedence; we never override brand background/colour here.
+
+   Slice 1 — Public chrome foundation (header, navigation, hero, footer,
+   public CTA buttons). Theme-agnostic polish only (spacing, radius,
+   shadow, transitions, hover micro-interactions). We deliberately do NOT
+   set background/text colours on themed chrome so the admin-configured
+   (currently dark) theme and live brand colour are preserved.
+   Consumes Phase 1 --ds-* tokens (see design-system.css).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Header / navigation
+   --------------------------------------------------------------------- */
+.header .header__top {
+    padding-block: var(--ds-space-2);
+}
+
+.header .header-info-list li a,
+.header .social-links li a {
+    transition: opacity var(--ds-transition-fast), transform var(--ds-transition-fast);
+}
+
+.header .header-info-list li a:hover,
+.header .social-links li a:hover {
+    opacity: 0.85;
+}
+
+.header .header__bottom {
+    padding-block: var(--ds-space-3);
+    box-shadow: var(--ds-shadow-sm);
+}
+
+/* Nav links: smooth colour/opacity transition + animated underline that
+   uses the live brand colour. Colour itself is left to the theme. */
+.header .main-menu li a {
+    position: relative;
+    transition: color var(--ds-transition-fast);
+}
+
+.header .main-menu li a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 2px;
+    width: 0;
+    background-color: var(--ds-color-primary);
+    transition: width var(--ds-transition-base);
+}
+
+.header .main-menu li a:hover::after {
+    width: 100%;
+}
+
+/* ---------------------------------------------------------------------
+   Buttons (public chrome only — scoped under public wrappers).
+   We restyle shape/spacing/motion, NOT the brand background/colour.
+   --------------------------------------------------------------------- */
+.header .btn,
+.nav-right .btn,
+.hero .btn,
+.footer .btn,
+.cta-wrapper .btn {
+    border-radius: var(--ds-radius-pill);
+    transition: transform var(--ds-transition-fast), box-shadow var(--ds-transition-fast), opacity var(--ds-transition-fast);
+}
+
+.header .btn:hover,
+.nav-right .btn:hover,
+.hero .btn:hover,
+.footer .btn:hover,
+.cta-wrapper .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ds-shadow-md);
+}
+
+/* ---------------------------------------------------------------------
+   Hero / first view
+   NOTE: the hero section's own padding/height is intentionally left to
+   main.css — the header is positioned over the hero, so overriding
+   .hero padding pulls content under the header. We only enhance the
+   inner elements (type rhythm, description width, CTA spacing).
+   --------------------------------------------------------------------- */
+.hero .hero__subtitle {
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: var(--ds-font-weight-semibold);
+    font-size: var(--ds-font-size-sm);
+}
+
+.hero .hero__title {
+    line-height: var(--ds-line-height-tight);
+    margin-top: var(--ds-space-3);
+}
+
+.hero .hero__des {
+    line-height: var(--ds-line-height-loose);
+    max-width: 60ch;
+    margin-inline: auto;
+    opacity: 0.9;               /* gentle hierarchy below the heading (from Slice 2) */
+}
+
+.hero .btn--group {
+    gap: var(--ds-space-3);
+    flex-wrap: wrap;            /* never let the CTA row overflow on small screens (Slice 2) */
+    align-items: center;
+}
+
+.hero .video-btn .icon {
+    transition: transform var(--ds-transition-fast);
+}
+
+.hero .video-btn:hover .icon {
+    transform: scale(1.08);
+}
+
+/* ---------------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------------- */
+.footer .cta-wrapper {
+    border-radius: var(--ds-radius-lg);
+    box-shadow: var(--ds-shadow-lg);
+    padding: var(--ds-space-6);
+}
+
+.footer .footer-widget__title {
+    margin-bottom: var(--ds-space-4);
+}
+
+.footer .footer-link-list li {
+    margin-bottom: var(--ds-space-2);
+}
+
+.footer .footer-link-list li a {
+    transition: color var(--ds-transition-fast), padding-left var(--ds-transition-fast);
+}
+
+.footer .footer-link-list li a:hover {
+    padding-left: var(--ds-space-1);
+    color: var(--ds-color-primary);
+}
+
+.footer .footer-contact-card {
+    border-radius: var(--ds-radius-md);
+    transition: transform var(--ds-transition-fast), box-shadow var(--ds-transition-fast);
+}
+
+.footer .footer-contact-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--ds-shadow-md);
+}
+
+/* =====================================================================
+   Slice 2 — Hero / banner polish (CSS-only; builds on the hero inner-element
+   rhythm from Slice 1). No section padding/height or content changes.
+   NOTE: the btn--group wrap/align-items and hero__des opacity from this slice
+   were consolidated into the Slice 1 .hero blocks above to avoid duplicate
+   selectors; only the unique primary-CTA width remains here.
+   ===================================================================== */
+.hero .btn--group .btn--custom {
+    min-width: 180px;           /* balanced primary CTA width */
+}
+
+/* =====================================================================
+   Slice 3 — Public content section cards (service, feature, why-choose-us,
+   about). Consistent radius + hover lift/shadow + icon motion. Scoped under
+   .main-wrapper (public content only). Radius/hover only — no layout shift.
+   ===================================================================== */
+.main-wrapper .service-card,
+.main-wrapper .feaure-card,
+.main-wrapper .choose-card {
+    border-radius: var(--ds-radius-lg);
+    transition: transform var(--ds-transition-base), box-shadow var(--ds-transition-base);
+}
+
+.main-wrapper .service-card:hover,
+.main-wrapper .feaure-card:hover,
+.main-wrapper .choose-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--ds-shadow-lg);
+}
+
+.main-wrapper .service-card__icon,
+.main-wrapper .feaure-card__icon,
+.main-wrapper .choose-card__icon {
+    transition: transform var(--ds-transition-base);
+}
+
+.main-wrapper .service-card:hover .service-card__icon,
+.main-wrapper .feaure-card:hover .feaure-card__icon,
+.main-wrapper .choose-card:hover .choose-card__icon {
+    transform: translateY(-4px) scale(1.05);
+}
+
+/* Image blocks (about / feature thumbnails): soften corners to match cards. */
+.main-wrapper .about-thumb img,
+.main-wrapper .feature-thumb img {
+    border-radius: var(--ds-radius-lg);
+}
+
+/* =====================================================================
+   Slice 4 — Social proof & blog (testimonial, brands, blog cards).
+   Card/thumbnail polish only. We do NOT transform Slick slide containers
+   (.brand-slider/.thumb-slider) so the carousels keep working.
+   ===================================================================== */
+.main-wrapper .blog-card {
+    border-radius: var(--ds-radius-lg);
+    overflow: hidden;
+    transition: transform var(--ds-transition-base), box-shadow var(--ds-transition-base);
+}
+
+.main-wrapper .blog-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--ds-shadow-lg);
+}
+
+.main-wrapper .blog-card__thumb {
+    overflow: hidden;
+}
+
+.main-wrapper .blog-card__thumb img {
+    transition: transform var(--ds-transition-base);
+}
+
+.main-wrapper .blog-card:hover .blog-card__thumb img {
+    transform: scale(1.06);
+}
+
+/* Brand logos: gentle zoom on hover (no opacity/grayscale change so the
+   existing colour logos are untouched). */
+.main-wrapper .brand-item img {
+    transition: transform var(--ds-transition-base);
+}
+
+.main-wrapper .brand-item:hover img {
+    transform: scale(1.06);
+}
+
+/* Testimonial imagery: match the card radius language. */
+.main-wrapper .testimonial-slide-area .thumb img {
+    border-radius: var(--ds-radius-md);
+}
+
+/* =====================================================================
+   Slice 5 — Inner public pages (breadcrumb + public form inputs).
+   Styling only — the contact form's method/action/field names are NOT
+   touched. Focus states replace the default outline with a clearly visible
+   brand ring (better UX + accessibility). Scoped to public content.
+   ===================================================================== */
+.main-wrapper .form--control {
+    transition: border-color var(--ds-transition-fast), box-shadow var(--ds-transition-fast);
+}
+
+.main-wrapper .form--control:focus,
+.main-wrapper .form--control:focus-visible {
+    /* main.css sets the focus border-color with !important, so overriding it
+       to show a clear brand focus indicator (an accessibility affordance)
+       requires !important here — there is no lower-specificity alternative.
+       The box-shadow ring does not conflict and needs no !important. */
+    border-color: var(--ds-color-primary) !important;
+    box-shadow: 0 0 0 3px rgba(var(--ds-color-primary-rgb), 0.18);
+    outline: none;
+}
+
+.main-wrapper .page-breadcrumb a {
+    transition: color var(--ds-transition-fast), opacity var(--ds-transition-fast);
+}
+
+.main-wrapper .page-breadcrumb a:hover {
+    opacity: 0.85;
+}
+
+/* =====================================================================
+   Slice 6 — Accessibility pass: visible keyboard focus for public
+   interactive elements. :focus-visible only, so mouse/touch users see no
+   change; keyboard users get a clear brand outline. Public scope only.
+   ===================================================================== */
+.header a:focus-visible,
+.header button:focus-visible,
+.main-wrapper a:focus-visible,
+.main-wrapper button:focus-visible,
+.footer a:focus-visible,
+.footer button:focus-visible {
+    outline: 2px solid var(--ds-color-primary);
+    outline-offset: 2px;
+    border-radius: var(--ds-radius-sm);
+}
+
+/* Respect users who prefer reduced motion — disable the micro-interactions. */
+@media (prefers-reduced-motion: reduce) {
+    .main-wrapper .form--control,
+    .main-wrapper .page-breadcrumb a,
+    .main-wrapper .blog-card,
+    .main-wrapper .blog-card__thumb img,
+    .main-wrapper .brand-item img,
+    .main-wrapper .service-card,
+    .main-wrapper .feaure-card,
+    .main-wrapper .choose-card,
+    .main-wrapper .service-card__icon,
+    .main-wrapper .feaure-card__icon,
+    .main-wrapper .choose-card__icon,
+    .header .main-menu li a::after,
+    .header .btn,
+    .nav-right .btn,
+    .hero .btn,
+    .footer .btn,
+    .cta-wrapper .btn,
+    .hero .video-btn .icon,
+    .footer .footer-link-list li a,
+    .footer .footer-contact-card {
+        transition: none;
+    }
+}
