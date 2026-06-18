@@ -256,10 +256,6 @@
    touched. Focus states replace the default outline with a clearly visible
    brand ring (better UX + accessibility). Scoped to public content.
    ===================================================================== */
-.main-wrapper .form--control {
-    transition: border-color var(--ds-transition-fast), box-shadow var(--ds-transition-fast);
-}
-
 .main-wrapper .form--control:focus,
 .main-wrapper .form--control:focus-visible {
     /* main.css sets the focus border-color with !important, so overriding it
@@ -457,6 +453,8 @@ body {
     background-color: var(--pb-card-2);
     border: 1px solid var(--pb-border);
     color: var(--pb-text);
+    /* (transition consolidated here from the Phase 2 focus block) */
+    transition: border-color var(--ds-transition-fast), box-shadow var(--ds-transition-fast);
 }
 
 .main-wrapper .form--control::placeholder {
