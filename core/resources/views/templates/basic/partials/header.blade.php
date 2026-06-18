@@ -94,6 +94,14 @@
                         <li><a href="{{ route('contact') }}">@lang('Contact')</a></li>
                     </ul>
                     <div class="nav-right">
+                        {{-- Material M1: light/dark toggle, marketing pages only (auth shares this
+                             layout, so it is route-gated to stay off auth pages). --}}
+                        @if (request()->routeIs('home', 'blogs', 'blog.details', 'contact', 'pages', 'policy.pages', 'cookie.policy'))
+                            <button type="button" class="md-public-theme-toggle md-icon-button md-state me-2" data-md-theme-toggle aria-label="@lang('Toggle light/dark theme')">
+                                <span class="material-symbols-outlined md-theme-icon md-theme-icon--to-light">light_mode</span>
+                                <span class="material-symbols-outlined md-theme-icon md-theme-icon--to-dark">dark_mode</span>
+                            </button>
+                        @endif
                         @if (auth()->user())
                             <a href="{{ route('user.logout') }}" class="btn btn-sm btn--danger d-lg-inline-flex align-items-center me-2">
                                 <i class="las la-sign-out-alt font-size--18px me-2"></i> @lang('Logout')

@@ -1,0 +1,169 @@
+/* =====================================================================
+   MarketCap X — Material public re-skin (M1)
+   ---------------------------------------------------------------------
+   PUBLIC MARKETING PAGES ONLY. Loaded from layouts/frontend.blade.php,
+   route-gated to marketing routes (home/blogs/blog.details/contact/pages/
+   policy.pages/cookie.policy), so the shared auth pages on this layout are
+   untouched. Loads AFTER public-redesign.css.
+
+   Strategy: public-redesign.css already drives the whole dark theme through
+   --pb-* tokens. We re-point those tokens at Material 3 --md-sys-* colour
+   roles, which carry both light and dark schemes ([data-md-theme]). That
+   re-skins every public surface onto Material AND makes the light/dark toggle
+   work — without per-selector overrides. On top of that we add Material
+   chrome: the header theme toggle, state layers, elevation, and shape.
+   Default scheme is dark (premium fintech identity); the toggle persists light.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Re-alias the premium-black tokens onto Material roles.
+   Loads after public-redesign.css, so this :root wins. Every existing
+   public rule that consumes --pb-* now follows Material light/dark.
+   (--pb-glow* are left as-is so the brand glow keeps tracking the primary.)
+   --------------------------------------------------------------------- */
+:root {
+    --pb-bg: var(--md-sys-color-background);
+    --pb-surface: var(--md-sys-color-surface-container);
+    --pb-card: var(--md-sys-color-surface-container-low);
+    --pb-card-2: var(--md-sys-color-surface-container-high);
+    --pb-border: var(--md-sys-color-outline-variant);
+    --pb-border-strong: var(--md-sys-color-outline);
+    --pb-text: var(--md-sys-color-on-surface);
+    --pb-text-muted: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------------------------------------------------------------
+   2. Header — keep it overlaying the hero/breadcrumb (both carry a dark
+   overlay in either scheme), so header text stays light. Add Material
+   state layers to the nav links + style the theme toggle.
+   --------------------------------------------------------------------- */
+.header .main-menu li a {
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.md-public-theme-toggle {
+    color: #fff;
+    flex: 0 0 auto;
+}
+
+.md-public-theme-toggle .md-theme-icon {
+    display: none;
+    font-size: 22px;
+    line-height: 1;
+}
+
+/* In dark show the "go light" icon; in light show the "go dark" icon. */
+[data-md-theme="dark"] .md-public-theme-toggle .md-theme-icon--to-light {
+    display: inline-block;
+}
+
+[data-md-theme="light"] .md-public-theme-toggle .md-theme-icon--to-dark {
+    display: inline-block;
+}
+
+/* ---------------------------------------------------------------------
+   2b. Text on permanently-dark imagery stays light in BOTH schemes.
+   The hero and inner-hero (breadcrumb) keep a dark image + dark overlay in
+   light mode too, so their text must NOT flip to the dark on-surface colour.
+   public-redesign.css colours these via :is(h1..h6):not()... (specificity
+   0,3,1); overriding for this image-backed exception needs !important — there
+   is no lower-specificity alternative, and it only affects these hero texts. */
+.hero .hero__title,
+.hero .hero__subtitle,
+.hero .hero__des,
+.inner-hero .page-title,
+.inner-hero .page-breadcrumb,
+.inner-hero .page-breadcrumb li,
+.inner-hero .page-breadcrumb a {
+    color: #fff !important;
+}
+
+/* ---------------------------------------------------------------------
+   2c. Dark-band sections. The service + feature sections (.section--bg2) were
+   authored as DARK bands — their headings/subheadings use .text-white and the
+   feature cards are borderless white-text-on-section. Keep them on a
+   brand-tinted dark Material surface in BOTH schemes so that text stays
+   readable in light mode and the page keeps an alternating light/dark rhythm.
+   (Their inner cards still flip via the aliased --pb-* surfaces.) --------- */
+.main-wrapper .section--bg2 {
+    background-color: color-mix(in srgb, var(--md-sys-color-primary) 6%, #111316);
+}
+
+/* ---------------------------------------------------------------------
+   3. Material elevation + shape on the public cards (colour already comes
+   from the aliased --pb-* surfaces). Gives the cards real M3 depth.
+   --------------------------------------------------------------------- */
+.main-wrapper .service-card,
+.main-wrapper .feaure-card,
+.main-wrapper .choose-card,
+.main-wrapper .blog-card {
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+    transition: box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard),
+                transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+}
+
+.main-wrapper .service-card:hover,
+.main-wrapper .feaure-card:hover,
+.main-wrapper .choose-card:hover,
+.main-wrapper .blog-card:hover {
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+/* ---------------------------------------------------------------------
+   4. Public buttons → Material treatment. The brand fill/colour still
+   comes from color.php (!important), so we only add M3 shape, label
+   styling, elevation + a press transition.
+   --------------------------------------------------------------------- */
+.hero .btn--base,
+.footer .btn,
+.cta-wrapper .btn,
+.subscribe-section .btn--base {
+    border-radius: var(--md-sys-shape-corner-full);
+    font: var(--md-sys-typescale-label-large);
+    letter-spacing: 0.1px;
+    box-shadow: var(--md-sys-elevation-1);
+    transition: box-shadow var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                transform var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.hero .btn--base:hover,
+.footer .btn:hover,
+.cta-wrapper .btn:hover,
+.subscribe-section .btn--base:hover {
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+/* ---------------------------------------------------------------------
+   5. Brand "trusted by" logo chips: keep a fixed light surface in BOTH
+   schemes so DB-driven logos of unknown colour stay visible (a dark chip
+   in light mode would hide dark logos).
+   --------------------------------------------------------------------- */
+.main-wrapper .brand-item {
+    background-color: #f4f5f7;
+    border-radius: var(--md-sys-shape-corner-md);
+}
+
+/* ---------------------------------------------------------------------
+   6. Section headings: adopt the M3 title weight/tracking (colour still
+   from the aliased --pb-text). Scoped to public section headers.
+   --------------------------------------------------------------------- */
+.main-wrapper .section-header .section-title {
+    letter-spacing: -0.01em;
+}
+
+/* Respect reduced motion for the transitions added here. */
+@media (prefers-reduced-motion: reduce) {
+    .header .main-menu li a,
+    .main-wrapper .service-card,
+    .main-wrapper .feaure-card,
+    .main-wrapper .choose-card,
+    .main-wrapper .blog-card,
+    .hero .btn--base,
+    .footer .btn,
+    .cta-wrapper .btn,
+    .subscribe-section .btn--base {
+        transition: none;
+    }
+}
