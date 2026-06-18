@@ -501,3 +501,76 @@ body {
         transition: none;
     }
 }
+
+/* #####################################################################
+   PHASE 5 — Public conversion polish (public marketing only)
+   Appended AFTER all Phase 2/3/4 blocks and the reduced-motion guard above.
+   Each Phase-5 slice is self-contained and carries its OWN
+   prefers-reduced-motion guard, so NO existing rule is edited (purely
+   additive). Same constraints as the rest of this file: scoped to
+   .main-wrapper/.header/.hero/.footer, token-driven, loaded before
+   color.php so the live brand colour is never overridden. !important is
+   used ONLY to defeat a Bootstrap utility declared !important (documented
+   inline at each use, same precedent as the .bg-white rule above).
+   #####################################################################
+
+   ----- Slice B — Hero conversion (eyebrow badge, fluid title, CTA hierarchy)
+   The banner markup is unchanged; we restyle the existing inner elements only
+   (.hero__subtitle / .hero__title / .hero__des / .btn--group). No section
+   padding/height change (the header overlaps the hero — see Phase 2 note). */
+
+/* Eyebrow: promote the plain uppercase label to a premium brand "pill" so the
+   hero opens with a clear positioning chip (a fintech hero convention). The
+   label carries Bootstrap's .d-inline (display:inline !important); a pill needs
+   inline-block to take vertical padding, so this single property must override
+   that utility — no lower-specificity alternative exists. */
+.hero .hero__subtitle {
+    display: inline-block !important;
+    padding: 0.45em 1.1em;
+    border-radius: var(--ds-radius-pill);
+    background-color: rgba(var(--ds-color-primary-rgb), 0.12);
+    border: 1px solid rgba(var(--ds-color-primary-rgb), 0.30);
+    color: var(--pb-text);
+    line-height: 1;
+}
+
+/* Fluid headline: scale the hero title with the viewport for a stronger
+   above-the-fold without a media-query ladder. clamp() stays bounded on both
+   phone and ultra-wide, so it also prevents overflow. (No transition →
+   reduced-motion safe. Loads after main.css → wins on source order.) */
+.hero .hero__title {
+    font-size: clamp(2rem, 1.35rem + 3.1vw, 3.5rem);
+    letter-spacing: -0.02em;
+    font-weight: var(--ds-font-weight-bold);
+}
+
+/* Description: lift it from the Phase-2 0.9 opacity to full strength and size it
+   up one step, so the value proposition reads as primary supporting copy. */
+.hero .hero__des {
+    opacity: 1;
+    font-size: var(--ds-font-size-lg);
+}
+
+/* CTA hierarchy: the primary (.btn--custom) already carries the solid brand
+   fill + resting/hover glow (Phase 2/3). Frame the secondary video action as a
+   ghost button so the pair reads as a clear primary/secondary choice instead of
+   "button + bare link". */
+.hero .btn--group .video-btn {
+    padding: 0.62em 1.4em;
+    border: 1px solid var(--pb-border-strong);
+    border-radius: var(--ds-radius-pill);
+    transition: border-color var(--ds-transition-fast),
+                background-color var(--ds-transition-fast),
+                opacity var(--ds-transition-fast);
+}
+
+.hero .btn--group .video-btn:hover {
+    border-color: rgba(var(--ds-color-primary-rgb), 0.50);
+    background-color: rgba(var(--ds-color-primary-rgb), 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero .btn--group .video-btn {
+        transition: none;
+    }
+}
