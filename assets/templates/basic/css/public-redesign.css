@@ -106,10 +106,13 @@
     line-height: var(--ds-line-height-loose);
     max-width: 60ch;
     margin-inline: auto;
+    opacity: 0.9;               /* gentle hierarchy below the heading (from Slice 2) */
 }
 
 .hero .btn--group {
     gap: var(--ds-space-3);
+    flex-wrap: wrap;            /* never let the CTA row overflow on small screens (Slice 2) */
+    align-items: center;
 }
 
 .hero .video-btn .icon {
@@ -159,18 +162,12 @@
 /* =====================================================================
    Slice 2 — Hero / banner polish (CSS-only; builds on the hero inner-element
    rhythm from Slice 1). No section padding/height or content changes.
+   NOTE: the btn--group wrap/align-items and hero__des opacity from this slice
+   were consolidated into the Slice 1 .hero blocks above to avoid duplicate
+   selectors; only the unique primary-CTA width remains here.
    ===================================================================== */
-.hero .btn--group {
-    flex-wrap: wrap;            /* never let the CTA row overflow on small screens */
-    align-items: center;
-}
-
 .hero .btn--group .btn--custom {
     min-width: 180px;           /* balanced primary CTA width */
-}
-
-.hero .hero__des {
-    opacity: 0.9;               /* gentle hierarchy below the heading */
 }
 
 /* =====================================================================
