@@ -34,11 +34,18 @@ if (!$secondColor or !checkhexcolor2($secondColor)) {
 }
 
 ?>
+<?php
+// Derive an "R, G, B" triplet from the validated 6-hex brand colour so the
+// design-system RGB token tracks the live brand (used by focus rings / glows
+// in public-redesign.css). $color is already validated as ^#[a-f0-9]{6}$.
+$pbHex = ltrim($color, '#');
+$pbRgb = hexdec(substr($pbHex, 0, 2)) . ', ' . hexdec(substr($pbHex, 2, 2)) . ', ' . hexdec(substr($pbHex, 4, 2));
+?>
 
 /* Design-system brand tokens, set from the admin-configured base color so
-   --ds-color-primary tracks the live theme (see assets/.../css/design-system.css
-   and core/docs/DESIGN-SYSTEM.md). Variable declarations only — no visual change. */
-:root{--ds-color-primary:<?php echo $color; ?>;--ds-color-secondary:<?php echo $secondColor; ?>;}
+   --ds-color-primary (+ its RGB triplet for glows/rings) track the live theme.
+   See design-system.css / public-redesign.css and core/docs/DESIGN-SYSTEM.md. */
+:root{--ds-color-primary:<?php echo $color; ?>;--ds-color-secondary:<?php echo $secondColor; ?>;--ds-color-primary-rgb:<?php echo $pbRgb; ?>;}
 
 .btn--base,.hero__subtitle::before,.hero__subtitle::after,.video-btn .icon::before, .video-btn .icon::after,.video-btn .icon,.video-btn .icon::before, .video-btn .icon::after,.about-thumb .about-img-content,.service-card::after,.section-subtitle.border-left::before,.testimonial-slide-area .content-slider .slick-arrow,.blog-card .post-time,.cta-wrapper,.footer-widget__title::before,.bg--base,.form-check-input:checked,.d-widget.curve--shape::before,.quick-link-card .icon::before,.header .main-menu li .sub-menu li a::before,.pagination .page-item.active .page-link,.pagination .page-item .page-link:hover,.sidebar-menu__header::before{
 background-color: <?php echo $color; ?> !important

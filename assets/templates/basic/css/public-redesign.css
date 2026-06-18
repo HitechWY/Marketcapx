@@ -461,6 +461,19 @@ body {
     color: var(--pb-text-muted);
 }
 
+/* ----- Phase 4 Slice D — Black-theme consistency -----
+   main.css gives the collapsed mobile nav panel a navy (#071e3e) background at
+   <=1199px; align it to the theme surface (+ hairline border) for consistency.
+   Scoped to the public header AND the same mobile breakpoint, so the desktop
+   inline nav (transparent) is unaffected. */
+@media (max-width: 1199px) {
+    .header .navbar-collapse {
+        background-color: var(--pb-surface);
+        border: 1px solid var(--pb-border);
+        border-radius: var(--ds-radius-md);
+    }
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
     .main-wrapper .brand-item,
