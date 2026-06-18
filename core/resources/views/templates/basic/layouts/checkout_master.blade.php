@@ -15,6 +15,14 @@
     <link rel="stylesheet" href="{{ asset('assets/global/css/line-awesome.min.css') }}">
 
     <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'merchant/css/main.css') }}">
+
+    {{-- Material M5: sensitive-UI visual layer (hosted checkout only — this is
+         the checkout_master layout). material-tokens.css supplies the --md-sys-*
+         shape/elevation tokens (this standalone layout doesn't otherwise load
+         them); material-sensitive.css adds additive, theme-independent Material
+         polish. Presentation only — no payment form contract touched. --}}
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-tokens.css') }}">
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-sensitive.css') }}?v=1">
 </head>
 
 <body>

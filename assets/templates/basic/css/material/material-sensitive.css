@@ -1,0 +1,125 @@
+/* =====================================================================
+   MarketCap X — Material sensitive-UI visual layer (M5)
+   ---------------------------------------------------------------------
+   CHECKOUT / PAYMENT-SENSITIVE PAGES ONLY. Loaded from exactly two places:
+     1. layouts/checkout_master.blade.php (the standalone hosted-checkout
+        layout used by api_payment/* — it otherwise has no Material tokens, so
+        material-tokens.css is linked alongside this file there);
+     2. layouts/app.blade.php @push('style'), route-gated to the authenticated
+        payment routes (deposit confirm/manual, invoice payment, make-payment),
+        which render inside the dashboard masters.
+   It never loads on public marketing, auth, dashboard-home, or admin.
+
+   HIGH-RISK AREA — this layer is ADDITIVE and THEME-INDEPENDENT (the M4 admin
+   approach): it adds Material SHAPE / ELEVATION / MOTION / FOCUS-VISIBLE and
+   chip-badge styling on top of the existing payment UI. It does NOT repaint
+   surfaces onto theme-dependent --md-sys roles, because the hosted checkout
+   has a merchant-configurable light/dark variant (.checkout-wrapper--dark) and
+   its own merchant main.css base — repainting would risk contrast clashes.
+
+   PRESENTATION ONLY. This file edits ZERO Blade markup. No payment form
+   contract, gateway selection, amount/currency/wallet/reference field, hidden
+   field, CSRF, button value, validation, route, or backend behaviour is
+   touched. PCI card-entry forms (Authorize/Checkout/Stripe/NMI) and the
+   auto-submit redirect are intentionally NOT given any payment-specific styling
+   here — they are frozen (see core/docs MATERIAL notes).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Payment-scoped accessible focus ring. Scoped to the two payment roots
+   (.checkout-section for hosted checkout, .add-money-card for in-app deposit)
+   so it only affects payment surfaces. Additive — no control behaviour change.
+   --------------------------------------------------------------------- */
+.checkout-section a:focus-visible,
+.checkout-section button:focus-visible,
+.checkout-section .form--control:focus-visible,
+.add-money-card a:focus-visible,
+.add-money-card button:focus-visible,
+.add-money-card .form--control:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary, #336699);
+    outline-offset: 2px;
+    border-radius: var(--md-sys-shape-corner-xs, 4px);
+}
+
+/* =====================================================================
+   M5 (D) — Payment-sensitive shell polish. Theme-independent shape +
+   elevation + motion on the hosted-checkout card and the in-app deposit
+   card. Colours are NOT repainted (the hosted checkout has its own light/
+   dark .checkout-wrapper--dark variant + merchant base CSS). No markup,
+   no form field, no contract touched.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   2. Hosted checkout card (api_payment/*) → Material shape + elevation so
+   the checkout panel reads as an M3 surface. The wrapper already has
+   .rounded-3; we add elevation + refine the radius and a smooth shadow.
+   --------------------------------------------------------------------- */
+.checkout-section .checkout-wrapper {
+    border-radius: var(--md-sys-shape-corner-xl, 28px);
+    box-shadow: var(--md-sys-elevation-2, 0 1px 3px rgba(0, 0, 0, 0.2));
+}
+
+.checkout-section .checkout-wrapper__header .title {
+    letter-spacing: -0.01em;
+}
+
+.checkout-section .or-divider {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
+/* Checkout text fields + buttons → Material shape (behaviour untouched). */
+.checkout-section .form--control {
+    border-radius: var(--md-sys-shape-corner-sm, 8px);
+}
+
+.checkout-section .btn {
+    border-radius: var(--md-sys-shape-corner-full, 9999px);
+    transition: box-shadow var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+/* ---------------------------------------------------------------------
+   3. In-app deposit / add-money card (payment/deposit, invoice_payment) →
+   Material shape + elevation. The amount/gateway selects get M3 shape; the
+   field names, options, data-* attributes and submit behaviour are untouched.
+   --------------------------------------------------------------------- */
+.add-money-card {
+    border-radius: var(--md-sys-shape-corner-lg, 16px);
+    box-shadow: var(--md-sys-elevation-1, 0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.add-money-card .form--control,
+.add-money-card .select2-container .select2-selection,
+.add-money-card .input-group-text {
+    border-radius: var(--md-sys-shape-corner-sm, 8px);
+}
+
+/* Payment summary "amount to pay" block → quiet emphasis (display only). */
+.add-money-card .show-amount,
+.add-money-card .payable .sym,
+.add-money-card .payable {
+    letter-spacing: -0.01em;
+}
+
+.add-money-card .add-money-details-list .caption {
+    color: var(--md-sys-color-on-surface-variant, #5b6e88);
+}
+
+/* ---------------------------------------------------------------------
+   4. Status chips on payment surfaces → Material pill shape (semantic
+   fills kept). Covers any .badge rendered on the payment pages.
+   --------------------------------------------------------------------- */
+.checkout-section .badge,
+.add-money-card .badge {
+    border-radius: var(--md-sys-shape-corner-full, 9999px);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 0.35em 0.7em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .checkout-section .btn {
+        transition: none;
+    }
+}
