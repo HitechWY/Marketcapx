@@ -1,0 +1,377 @@
+/* =====================================================================
+   MarketCap X — Material dashboard shell re-skin (M3)
+   ---------------------------------------------------------------------
+   DASHBOARD AREAS ONLY (user / merchant / agent). Loaded ONLY from the three
+   dashboard master layouts (layouts/user_master, merchant_master, agent_master)
+   via @push('style'), so it can never leak into the public marketing pages,
+   auth pages, the admin panel or checkout — those use different layouts.
+   Loads AFTER the per-area dashboard CSS (dashboard.css / merchant|agent main.css,
+   pushed in @push('style-lib')) so this Material layer wins. material-tokens.css
+   + material-components.css already load globally from app.blade.php, so the
+   --md-sys-* roles and the [data-md-theme] light/dark scheme are available.
+
+   Strategy: additive Material chrome (surface colour, shape, elevation, state,
+   focus) layered onto the EXISTING dashboard classes. PRESENTATION ONLY — no
+   markup, no DOM structure, and NO financial/KYC/auth form contract is touched
+   (this file changes zero Blade form fields). Default scheme follows the
+   persisted [data-md-theme] (dark by default), same as M1/M2.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Dashboard surface foundation. Re-point the dashboard backdrop + base
+   text onto Material roles so the whole shell tracks light/dark. Scoped to the
+   dashboard roots only.
+   --------------------------------------------------------------------- */
+.agent-dashboard,
+.main-wrapper {
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard {
+    background-color: var(--md-sys-color-background);
+}
+
+/* The user dashboard renders inside .main-wrapper on the app layout (no
+   public-redesign.css here); give it the same Material backdrop. */
+.main-wrapper {
+    background-color: var(--md-sys-color-background);
+}
+
+/* Material symbols / icon font smoothing parity with the rest of the shell. */
+.agent-dashboard .las,
+.main-wrapper .d-widget .las {
+    line-height: 1;
+}
+
+/* =====================================================================
+   M3 (D) — Dashboard shell: sidebar, topbar, dropdowns (merchant/agent share
+   the .agent-dashboard shell; the user dashboard reuses the .header topbar).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   2. Sidebar → Material navigation surface with elevation + shape.
+   --------------------------------------------------------------------- */
+.agent-dashboard .d-sidebar {
+    background-color: var(--md-sys-color-surface-container-low);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+/* Section labels adopt the M3 label typescale + muted role. */
+.agent-dashboard .sidebar-menu__header {
+    color: var(--md-sys-color-on-surface-variant);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+}
+
+/* Nav links → rounded targets with a Material state layer on hover/focus. */
+.agent-dashboard .sidebar-menu__link {
+    color: var(--md-sys-color-on-surface-variant);
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .sidebar-menu__link:hover,
+.agent-dashboard .sidebar-menu__link:focus-visible {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+    color: var(--md-sys-color-on-surface);
+}
+
+/* Active item → primary-container "pill", the M3 navigation-selected state.
+   color.php forces the active link text to the brand primary with !important
+   (selector `.sidebar-menu__item.active .sidebar-menu__link`, specificity 0,3,0),
+   which on the primary-container fill measures only ~2.9:1. Our selector is
+   0,4,0 (the .agent-dashboard prefix), so an !important on-primary-container
+   text wins and restores the M3 selected-state contrast. Justified override. */
+.agent-dashboard .sidebar-menu__item.active .sidebar-menu__link {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container) !important;
+    border-radius: var(--md-sys-shape-corner-sm);
+}
+
+.agent-dashboard .sidebar-menu__item.active .sidebar-menu__link i {
+    color: var(--md-sys-color-on-primary-container) !important;
+}
+
+/* ---------------------------------------------------------------------
+   3. Topbar → Material surface with a hairline + low elevation.
+   --------------------------------------------------------------------- */
+.agent-dashboard .dashboard-top-nav {
+    background-color: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+/* Hamburger / close buttons → Material icon-button shape + state. */
+.agent-dashboard .sidebar-open-btn,
+.agent-dashboard .sidebar-close-btn {
+    border-radius: var(--md-sys-shape-corner-full);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .sidebar-open-btn:hover,
+.agent-dashboard .sidebar-open-btn:focus-visible {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+/* ---------------------------------------------------------------------
+   4. User-menu dropdown (shared by all three topbars) → Material menu
+   surface: elevation, shape, on-surface text. Scoped under the dashboard
+   roots so it only affects the dashboards (this file is dashboard-only anyway).
+   --------------------------------------------------------------------- */
+.agent-dashboard .header-user-menu,
+.main-wrapper .header-user-menu {
+    background-color: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-md);
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.agent-dashboard .header-user-menu li a,
+.main-wrapper .header-user-menu li a {
+    border-radius: var(--md-sys-shape-corner-xs);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .header-user-menu li a:hover,
+.main-wrapper .header-user-menu li a:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+/* ---------------------------------------------------------------------
+   5. Dashboard body breathing room + page section headings.
+   --------------------------------------------------------------------- */
+.agent-dashboard .agent-dashboard__body h6,
+.main-wrapper .custom--card h6 {
+    color: var(--md-sys-color-on-surface);
+}
+
+/* Respect reduced motion for the shell transitions. */
+@media (prefers-reduced-motion: reduce) {
+    .agent-dashboard .sidebar-menu__link,
+    .agent-dashboard .sidebar-open-btn,
+    .agent-dashboard .sidebar-close-btn,
+    .agent-dashboard .header-user-menu li a,
+    .main-wrapper .header-user-menu li a {
+        transition: none;
+    }
+}
+
+/* =====================================================================
+   M3 (E) — Cards, widgets, stat/balance cards. Display only: surface,
+   shape and elevation are added; amounts, values, queries and data sources
+   are untouched (no markup is edited in this file).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   6. Generic cards → Material container surface + shape + elevation. Covers
+   .card and the theme's .custom--card across all three dashboards.
+   --------------------------------------------------------------------- */
+.agent-dashboard .card,
+.agent-dashboard .custom--card,
+.main-wrapper .card,
+.main-wrapper .custom--card {
+    background-color: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+.agent-dashboard .card-header,
+.main-wrapper .card-header,
+.main-wrapper .custom--card .card-header {
+    background-color: transparent;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard .card-title,
+.main-wrapper .card-title {
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------
+   7. Stat widgets (wallet balance tiles) → elevated Material tiles with a
+   brand-tinted surface so the balance figures read as the primary metric.
+   The amount text itself is theme-driven; we only style the tile + label.
+   --------------------------------------------------------------------- */
+.agent-dashboard .d-widget,
+.main-wrapper .d-widget {
+    background-color: color-mix(in srgb, var(--md-sys-color-primary) 7%, var(--md-sys-color-surface-container));
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+    transition: box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .d-widget:hover,
+.main-wrapper .d-widget:hover {
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+.agent-dashboard .d-widget__content i,
+.main-wrapper .d-widget__content i {
+    color: var(--md-sys-color-primary);
+}
+
+.agent-dashboard .d-widget__amount,
+.main-wrapper .d-widget__amount {
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard .d-widget__footer,
+.main-wrapper .d-widget__footer {
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* ---------------------------------------------------------------------
+   8. Sidebar balance card (user dashboard) — highlight the headline balance
+   on the primary role; the figure is backend-rendered and untouched.
+   --------------------------------------------------------------------- */
+.main-wrapper .main-balance {
+    color: var(--md-sys-color-primary);
+}
+
+.main-wrapper .caption-list-two .caption,
+.agent-dashboard .caption-list-two .caption {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.main-wrapper .caption-list-two .value,
+.agent-dashboard .caption-list-two .value {
+    color: var(--md-sys-color-on-surface);
+}
+
+/* ---------------------------------------------------------------------
+   9. Quick-link cards → Material outlined tiles with a state layer on hover.
+   --------------------------------------------------------------------- */
+.agent-dashboard .quick-link-card,
+.main-wrapper .quick-link-card {
+    border-radius: var(--md-sys-shape-corner-md);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                box-shadow var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .quick-link-card:hover,
+.main-wrapper .quick-link-card:hover {
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-dashboard .d-widget,
+    .main-wrapper .d-widget,
+    .agent-dashboard .quick-link-card,
+    .main-wrapper .quick-link-card {
+        transition: none;
+    }
+}
+
+/* =====================================================================
+   M3 (F) — Tables, lists, badges, empty states. Read-only presentation:
+   links, routes, IDs, action buttons and any form/status behaviour are
+   untouched (no markup edited).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   10. Data tables (.table.custom--table) → Material table treatment:
+   subtle header surface, row hover state layer, hairline row dividers.
+   --------------------------------------------------------------------- */
+.agent-dashboard .table.custom--table thead th,
+.main-wrapper .table.custom--table thead th {
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    letter-spacing: 0.02em;
+}
+
+.agent-dashboard .table.custom--table tbody td,
+.main-wrapper .table.custom--table tbody td {
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard .table.custom--table tbody tr,
+.main-wrapper .table.custom--table tbody tr {
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .table.custom--table tbody tr:hover,
+.main-wrapper .table.custom--table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 5%, transparent);
+}
+
+/* ---------------------------------------------------------------------
+   11. Transaction accordion list (.table--acordion) → Material list rows
+   with a state layer; the expand button + caption list adopt M3 colours.
+   --------------------------------------------------------------------- */
+.agent-dashboard .table--acordion .accordion-item,
+.main-wrapper .table--acordion .accordion-item {
+    background-color: transparent;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.agent-dashboard .table--acordion .accordion-button,
+.main-wrapper .table--acordion .accordion-button {
+    background-color: transparent;
+    color: var(--md-sys-color-on-surface);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .table--acordion .accordion-button:hover,
+.main-wrapper .table--acordion .accordion-button:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 5%, transparent);
+}
+
+.agent-dashboard .table--acordion .trans-title,
+.main-wrapper .table--acordion .trans-title {
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard .caption-list .caption,
+.main-wrapper .caption-list .caption {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.agent-dashboard .caption-list .value,
+.main-wrapper .caption-list .value {
+    color: var(--md-sys-color-on-surface);
+}
+
+/* ---------------------------------------------------------------------
+   12. Status badges → Material chip shape (full radius, label typescale).
+   The semantic fills come from the theme (success/warning/danger/info/dark);
+   we only normalise shape + sizing so they read as M3 status chips.
+   --------------------------------------------------------------------- */
+.agent-dashboard .badge,
+.main-wrapper .badge {
+    border-radius: var(--md-sys-shape-corner-full);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 0.35em 0.7em;
+}
+
+/* ---------------------------------------------------------------------
+   13. Empty-state messages → centred, muted on-surface so "no records"
+   reads as a calm Material empty state rather than a stray heading.
+   --------------------------------------------------------------------- */
+.agent-dashboard .accordion-body.text-center .text--muted,
+.main-wrapper .accordion-body.text-center .text--muted,
+.agent-dashboard .text--muted.text-center,
+.main-wrapper .text--muted.text-center {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-dashboard .table.custom--table tbody tr,
+    .main-wrapper .table.custom--table tbody tr,
+    .agent-dashboard .table--acordion .accordion-button,
+    .main-wrapper .table--acordion .accordion-button {
+        transition: none;
+    }
+}
