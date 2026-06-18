@@ -282,6 +282,22 @@
     opacity: 0.85;
 }
 
+/* =====================================================================
+   Slice 6 — Accessibility pass: visible keyboard focus for public
+   interactive elements. :focus-visible only, so mouse/touch users see no
+   change; keyboard users get a clear brand outline. Public scope only.
+   ===================================================================== */
+.header a:focus-visible,
+.header button:focus-visible,
+.main-wrapper a:focus-visible,
+.main-wrapper button:focus-visible,
+.footer a:focus-visible,
+.footer button:focus-visible {
+    outline: 2px solid var(--ds-color-primary);
+    outline-offset: 2px;
+    border-radius: var(--ds-radius-sm);
+}
+
 /* Respect users who prefer reduced motion — disable the micro-interactions. */
 @media (prefers-reduced-motion: reduce) {
     .main-wrapper .form--control,
