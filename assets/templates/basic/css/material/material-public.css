@@ -80,6 +80,17 @@
 }
 
 /* ---------------------------------------------------------------------
+   2c. Dark-band sections. The service + feature sections (.section--bg2) were
+   authored as DARK bands — their headings/subheadings use .text-white and the
+   feature cards are borderless white-text-on-section. Keep them on a
+   brand-tinted dark Material surface in BOTH schemes so that text stays
+   readable in light mode and the page keeps an alternating light/dark rhythm.
+   (Their inner cards still flip via the aliased --pb-* surfaces.) --------- */
+.main-wrapper .section--bg2 {
+    background-color: color-mix(in srgb, var(--md-sys-color-primary) 6%, #111316);
+}
+
+/* ---------------------------------------------------------------------
    3. Material elevation + shape on the public cards (colour already comes
    from the aliased --pb-* surfaces). Gives the cards real M3 depth.
    --------------------------------------------------------------------- */
