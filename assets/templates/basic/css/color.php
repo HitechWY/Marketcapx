@@ -169,3 +169,21 @@ background-color: <?php echo $color ?>;
 .trx-status-heading__title {
 color: <?php echo $color ?> !important;
 }
+
+/* =====================================================================
+   Material Design 3 brand mapping (M0). The admin-configured brand colour
+   becomes the M3 `primary` role; on-primary flips to near-black / white by
+   luminance for AA contrast. The container/surface tiers are derived from
+   --md-sys-color-primary in material-tokens.css (via color-mix), so the whole
+   Material palette tracks the live brand. Additive — consumed only by the
+   opt-in .md-* Material components (no existing element is affected).
+   $pbHex / $pbRgb are the validated brand hex / "R, G, B" computed above.
+   ===================================================================== */
+<?php
+$mdR   = hexdec(substr($pbHex, 0, 2));
+$mdG   = hexdec(substr($pbHex, 2, 2));
+$mdB   = hexdec(substr($pbHex, 4, 2));
+$mdLum = (0.2126 * $mdR + 0.7152 * $mdG + 0.0722 * $mdB) / 255; // 0..1
+$mdOnPrimary = $mdLum > 0.6 ? '#1c1b1f' : '#ffffff';
+?>
+:root{--md-sys-color-primary:<?php echo $color ?>;--md-sys-color-primary-rgb:<?php echo $pbRgb ?>;--md-sys-color-on-primary:<?php echo $mdOnPrimary ?>;}

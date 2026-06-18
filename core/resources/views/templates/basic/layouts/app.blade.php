@@ -5,6 +5,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    {{-- Material theme (M0): apply the persisted light/dark scheme before paint
+         (no flash). Inert until a surface opts into .md-* Material classes. --}}
+    <script>
+        (function () {
+            try {
+                var m = document.cookie.match("(?:^|; )md_theme=([^;]*)");
+                var t = m ? decodeURIComponent(m[1]) : (localStorage.getItem("md-theme") || "light");
+                document.documentElement.setAttribute("data-md-theme", t === "dark" ? "dark" : "light");
+            } catch (e) {
+                document.documentElement.setAttribute("data-md-theme", "light");
+            }
+        })();
+    </script>
+
     <title> {{ gs()->siteName(__($pageTitle)) }}</title>
     @include('partials.seo')
 
@@ -25,6 +39,15 @@
     <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/custom.css') }}">
 
     <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/design-system.css') }}">
+
+    {{-- Material Design 3 system (M0 foundation): additive token + component
+         layer. Styles only opt-in .md-* elements, so no existing page changes
+         until a phase adopts it. --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=block">
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-tokens.css') }}">
+    <link rel="stylesheet" href="{{ asset(activeTemplate(true) . 'css/material/material-components.css') }}">
 
     @stack('style')
 
@@ -59,6 +82,9 @@
     <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
     <!-- main js -->
     <script src="{{ asset(activeTemplate(true) . 'js/app.js') }}"></script>
+    {{-- Material Design 3 runtime (M0): theme toggle + ripple + drawer; acts
+         only on opt-in [data-md-*] hooks and .md-* classes. --}}
+    <script src="{{ asset(activeTemplate(true) . 'js/material.js') }}"></script>
 
     @stack('script-lib')
 

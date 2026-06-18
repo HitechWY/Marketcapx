@@ -1,0 +1,556 @@
+/* =====================================================================
+   MarketCap X — Material Design 3 components (M0 foundation)
+   ---------------------------------------------------------------------
+   ADDITIVE & VISUALLY INERT. Every rule is scoped to an explicit .md-*
+   class, so nothing renders differently until a surface opts in (later
+   phases). Consumes the --md-sys-* tokens from material-tokens.css and the
+   live brand from color.php. State layers use ::before; press ripples are
+   added by material.js. Honors prefers-reduced-motion at the end.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Shared: state layer + ripple host
+   --------------------------------------------------------------------- */
+.md-state {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.md-state::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: currentColor;
+    opacity: 0;
+    transition: opacity var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.md-state:hover::before {
+    opacity: var(--md-sys-state-hover-opacity);
+}
+
+.md-state:focus-visible::before {
+    opacity: var(--md-sys-state-focus-opacity);
+}
+
+.md-ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    background-color: currentColor;
+    opacity: var(--md-sys-state-pressed-opacity);
+    pointer-events: none;
+    z-index: 0;
+    animation: md-ripple-in var(--md-sys-motion-duration-long) var(--md-sys-motion-easing-standard) forwards;
+}
+
+@keyframes md-ripple-in {
+    to {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+/* keep label/icon content above the state/ripple layers */
+.md-button > *,
+.md-icon-button > *,
+.md-fab > *,
+.md-chip > *,
+.md-nav-item > *,
+.md-tab > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* ---------------------------------------------------------------------
+   Buttons (filled / tonal / outlined / text / elevated) + icon button + FAB
+   --------------------------------------------------------------------- */
+.md-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 24px;
+    border: none;
+    border-radius: var(--md-sys-shape-corner-full);
+    font: var(--md-sys-typescale-label-large);
+    letter-spacing: 0.1px;
+    text-decoration: none;
+    cursor: pointer;
+    color: var(--md-sys-color-primary);
+    background-color: transparent;
+    transition: box-shadow var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.md-button:disabled,
+.md-button.md-disabled {
+    pointer-events: none;
+    opacity: 0.38;
+}
+
+.md-button--filled {
+    color: var(--md-sys-color-on-primary);
+    background-color: var(--md-sys-color-primary);
+}
+
+.md-button--tonal {
+    color: var(--md-sys-color-on-secondary-container);
+    background-color: var(--md-sys-color-secondary-container);
+}
+
+.md-button--elevated {
+    color: var(--md-sys-color-primary);
+    background-color: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+.md-button--outlined {
+    color: var(--md-sys-color-primary);
+    background-color: transparent;
+    border: 1px solid var(--md-sys-color-outline);
+}
+
+.md-button--text {
+    padding: 0 12px;
+}
+
+.md-button--filled:hover,
+.md-button--tonal:hover,
+.md-button--elevated:hover {
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.md-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: none;
+    border-radius: var(--md-sys-shape-corner-full);
+    background-color: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    cursor: pointer;
+}
+
+.md-fab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 56px;
+    height: 56px;
+    padding: 0 16px;
+    border: none;
+    border-radius: var(--md-sys-shape-corner-lg);
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    box-shadow: var(--md-sys-elevation-3);
+    cursor: pointer;
+    font: var(--md-sys-typescale-label-large);
+}
+
+.md-fab:hover {
+    box-shadow: var(--md-sys-elevation-4);
+}
+
+/* ---------------------------------------------------------------------
+   Cards (elevated / filled / outlined)
+   --------------------------------------------------------------------- */
+.md-card {
+    display: block;
+    border-radius: var(--md-sys-shape-corner-md);
+    background-color: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+    overflow: hidden;
+}
+
+.md-card--elevated {
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+.md-card--filled {
+    background-color: var(--md-sys-color-surface-container-highest);
+}
+
+.md-card--outlined {
+    background-color: var(--md-sys-color-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.md-card__body {
+    padding: 16px;
+}
+
+/* ---------------------------------------------------------------------
+   Text fields (filled + outlined) with a floating label
+   --------------------------------------------------------------------- */
+.md-field {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.md-field__input {
+    width: 100%;
+    min-height: 48px;
+    padding: 22px 16px 8px;
+    border: none;
+    border-radius: var(--md-sys-shape-corner-xs) var(--md-sys-shape-corner-xs) 0 0;
+    background-color: var(--md-sys-color-surface-container-highest);
+    color: var(--md-sys-color-on-surface);
+    font: var(--md-sys-typescale-body-large);
+    border-bottom: 1px solid var(--md-sys-color-on-surface-variant);
+    transition: border-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.md-field__input:focus {
+    outline: none;
+    border-bottom: 2px solid var(--md-sys-color-primary);
+}
+
+.md-field__label {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-body-large);
+    pointer-events: none;
+    transition: transform var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                font-size var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+    transform-origin: left top;
+}
+
+.md-field__input:focus ~ .md-field__label,
+.md-field__input:not(:placeholder-shown) ~ .md-field__label {
+    transform: translateY(-10px) scale(0.75);
+    color: var(--md-sys-color-primary);
+}
+
+.md-field--outlined .md-field__input {
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-xs);
+    padding: 16px;
+    background-color: transparent;
+}
+
+.md-field--outlined .md-field__input:focus {
+    border: 2px solid var(--md-sys-color-primary);
+}
+
+.md-field__supporting {
+    margin: 4px 16px 0;
+    font: var(--md-sys-typescale-body-small);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.md-field--error .md-field__input {
+    border-color: var(--md-sys-color-error);
+}
+
+.md-field--error .md-field__supporting {
+    color: var(--md-sys-color-error);
+}
+
+/* ---------------------------------------------------------------------
+   Switch (M3)
+   --------------------------------------------------------------------- */
+.md-switch {
+    position: relative;
+    display: inline-flex;
+    width: 52px;
+    height: 32px;
+    flex: 0 0 auto;
+    cursor: pointer;
+}
+
+.md-switch input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.md-switch__track {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--md-sys-shape-corner-full);
+    background-color: var(--md-sys-color-surface-container-highest);
+    border: 2px solid var(--md-sys-color-outline);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.md-switch__thumb {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--md-sys-color-outline);
+    transition: transform var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.md-switch input:checked ~ .md-switch__track {
+    background-color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+}
+
+.md-switch input:checked ~ .md-switch__thumb {
+    transform: translateX(20px) scale(1.5);
+    background-color: var(--md-sys-color-on-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Chips
+   --------------------------------------------------------------------- */
+.md-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 16px;
+    border-radius: var(--md-sys-shape-corner-sm);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background-color: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-label-large);
+    cursor: pointer;
+}
+
+.md-chip--selected {
+    background-color: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+    border-color: transparent;
+}
+
+/* ---------------------------------------------------------------------
+   Lists
+   --------------------------------------------------------------------- */
+.md-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0;
+}
+
+.md-list__item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 56px;
+    padding: 8px 16px;
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-list__item--interactive {
+    cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------
+   Top app bar
+   --------------------------------------------------------------------- */
+.md-app-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 64px;
+    padding: 0 16px;
+    background-color: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-app-bar--scrolled {
+    background-color: var(--md-sys-color-surface-container);
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.md-app-bar__title {
+    font: var(--md-sys-typescale-title-large);
+    flex: 1 1 auto;
+}
+
+/* ---------------------------------------------------------------------
+   Navigation drawer + rail
+   --------------------------------------------------------------------- */
+.md-nav-drawer {
+    width: 280px;
+    padding: 12px;
+    background-color: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-nav-rail {
+    width: 80px;
+    padding: 12px 0;
+    background-color: var(--md-sys-color-surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.md-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: var(--md-sys-shape-corner-full);
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.md-nav-item--active {
+    background-color: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+/* ---------------------------------------------------------------------
+   Data table
+   --------------------------------------------------------------------- */
+.md-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    font: var(--md-sys-typescale-body-medium);
+}
+
+.md-data-table thead th {
+    text-align: left;
+    padding: 16px;
+    font: var(--md-sys-typescale-title-small);
+    color: var(--md-sys-color-on-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.md-data-table tbody td {
+    padding: 16px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.md-data-table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+/* ---------------------------------------------------------------------
+   Dialog + scrim
+   --------------------------------------------------------------------- */
+.md-scrim {
+    position: fixed;
+    inset: 0;
+    background-color: var(--md-sys-color-scrim);
+    opacity: 0.32;
+    z-index: 1040;
+}
+
+.md-dialog {
+    max-width: 560px;
+    width: calc(100% - 48px);
+    border: none;
+    border-radius: var(--md-sys-shape-corner-xl);
+    padding: 24px;
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+.md-dialog__headline {
+    font: var(--md-sys-typescale-headline-small);
+    margin-bottom: 16px;
+}
+
+/* ---------------------------------------------------------------------
+   Snackbar
+   --------------------------------------------------------------------- */
+.md-snackbar {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: var(--md-sys-shape-corner-xs);
+    background-color: var(--md-sys-color-inverse-surface);
+    color: var(--md-sys-color-inverse-on-surface);
+    font: var(--md-sys-typescale-body-medium);
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+/* ---------------------------------------------------------------------
+   Tabs
+   --------------------------------------------------------------------- */
+.md-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.md-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 16px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    font: var(--md-sys-typescale-title-small);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.md-tab--active {
+    color: var(--md-sys-color-primary);
+    border-bottom-color: var(--md-sys-color-primary);
+}
+
+/* ---------------------------------------------------------------------
+   Utilities: elevation, surfaces, typography helpers
+   --------------------------------------------------------------------- */
+.md-elevation-0 { box-shadow: var(--md-sys-elevation-0); }
+.md-elevation-1 { box-shadow: var(--md-sys-elevation-1); }
+.md-elevation-2 { box-shadow: var(--md-sys-elevation-2); }
+.md-elevation-3 { box-shadow: var(--md-sys-elevation-3); }
+.md-elevation-4 { box-shadow: var(--md-sys-elevation-4); }
+.md-elevation-5 { box-shadow: var(--md-sys-elevation-5); }
+
+.md-surface { background-color: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface); }
+.md-surface-container { background-color: var(--md-sys-color-surface-container); color: var(--md-sys-color-on-surface); }
+
+.md-display-large { font: var(--md-sys-typescale-display-large); }
+.md-headline-large { font: var(--md-sys-typescale-headline-large); }
+.md-headline-small { font: var(--md-sys-typescale-headline-small); }
+.md-title-large { font: var(--md-sys-typescale-title-large); }
+.md-title-medium { font: var(--md-sys-typescale-title-medium); }
+.md-body-large { font: var(--md-sys-typescale-body-large); }
+.md-body-medium { font: var(--md-sys-typescale-body-medium); }
+.md-label-large { font: var(--md-sys-typescale-label-large); }
+
+/* Respect reduced-motion: disable Material transitions + ripple animation. */
+@media (prefers-reduced-motion: reduce) {
+    .md-state::before,
+    .md-button,
+    .md-fab,
+    .md-field__input,
+    .md-field__label,
+    .md-switch__track,
+    .md-switch__thumb {
+        transition: none;
+    }
+
+    .md-ripple {
+        animation: none;
+        display: none;
+    }
+}
