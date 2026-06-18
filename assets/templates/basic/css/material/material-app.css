@@ -1,0 +1,105 @@
+/* =====================================================================
+   MarketCap X — Material APP design layer (Rebuild R1 foundation)
+   ---------------------------------------------------------------------
+   The page-level design system that the new Blade component library
+   (resources/views/components/ui/*) consumes. Built on the M0 --md-sys-*
+   tokens and the dormant M0 .md-* component classes (material-components.css),
+   which the new components now activate. Additive: only styles .md-* component
+   classes and the rebuilt sections it is explicitly adopted into.
+
+   This first (foundation) branch loads it ONLY on the public marketing routes
+   (route-gated in layouts/frontend.blade.php) and uses it for the rebuilt
+   public footer pilot. Later rebuild branches (R1b+) extend + adopt it further.
+
+   PRESENTATION ONLY — no markup contract, route, or behaviour is changed.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Component gaps not covered by material-components.css.
+   --------------------------------------------------------------------- */
+.md-button__icon {
+    font-size: 1.15em;
+    line-height: 1;
+    margin-right: 0.4em;
+    vertical-align: middle;
+}
+
+/* Status-chip tone modifiers (semantic fills on the M0 .md-chip). */
+.md-chip--tone-success { background: var(--md-sys-color-success, #28c76f); color: #fff; }
+.md-chip--tone-warning { background: var(--md-sys-color-warning, #ff9f43); color: #1a1a1a; }
+.md-chip--tone-danger  { background: var(--md-sys-color-error, #eb2222); color: var(--md-sys-color-on-error, #fff); }
+.md-chip--tone-info    { background: var(--md-sys-color-info, #336699); color: #fff; }
+.md-chip--tone-primary { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+
+/* ---------------------------------------------------------------------
+   2. Public footer — modern rebuild pilot. The footer keeps its CMS image
+   background + dark treatment; the three contact tiles are now .md-card
+   surfaces and the CTA is an .md-button. Give the cards a translucent
+   "glass" surface that reads cleanly on the dark footer image.
+   --------------------------------------------------------------------- */
+.footer .footer-contact-area .md-card {
+    background: color-mix(in srgb, var(--md-sys-color-surface-container-high) 88%, transparent);
+    border: 1px solid color-mix(in srgb, #ffffff 14%, transparent);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-2);
+    backdrop-filter: blur(6px);
+    transition: transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard),
+                box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+    height: 100%;
+}
+
+.footer .footer-contact-area .md-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--md-sys-elevation-4);
+}
+
+.footer .footer-contact-area .md-card__body {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.25rem;
+}
+
+.footer .footer-contact-area .md-card .fc-icon {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-size: 22px;
+}
+
+.footer .footer-contact-area .md-card .fc-content h5 {
+    margin: 0 0 2px;
+    font-size: 1rem;
+}
+
+.footer .footer-contact-area .md-card .fc-content h5 a,
+.footer .footer-contact-area .md-card .fc-content h5 {
+    color: var(--md-sys-color-on-surface);
+    word-break: break-word;
+}
+
+.footer .footer-contact-area .md-card .fc-content .caption {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* CTA button in the footer hero — Material filled pill with elevation. */
+.footer .cta-wrapper .md-button {
+    border-radius: var(--md-sys-shape-corner-full);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+/* Respect reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+    .footer .footer-contact-area .md-card {
+        transition: none;
+    }
+    .footer .footer-contact-area .md-card:hover {
+        transform: none;
+    }
+}

@@ -15,7 +15,7 @@
                                 <h2 class="title text-white">{{ __(@$footer->box_heading) }}</h2>
                             </div>
                             <div class="col-lg-4 text-lg-end text-center mt-lg-0 mt-4">
-                                <a href="{{ $footer->box_button_link }}" class="btn btn--dark">{{ __(@$footer->box_button_name) }}</a>
+                                <x-ui.button :href="$footer->box_button_link" variant="filled">{{ __(@$footer->box_button_name) }}</x-ui.button>
                             </div>
                         </div>
                     </div>
@@ -82,39 +82,31 @@
             <div class="container">
                 <div class="row justify-content-center align-items-center mb-5 footer-contact-wrapper">
                     <div class="col-md-4 col-sm-6 footer-contact-item">
-                        <div class="footer-contact-card">
-                            <div class="icon">
-                                <i class="las la-envelope"></i>
-                            </div>
-                            <div class="content">
-                                <h5><a href="mailto:{{ @$contact->email_address }}">{{ @$contact->email_address }}</a>
-                                </h5>
+                        <x-ui.card variant="elevated">
+                            <span class="fc-icon"><i class="las la-envelope"></i></span>
+                            <div class="fc-content">
+                                <h5><a href="mailto:{{ @$contact->email_address }}">{{ @$contact->email_address }}</a></h5>
                                 <span class="caption font-size--14px">@lang('Mail Address')</span>
                             </div>
-                        </div><!-- footer-contact-card end -->
+                        </x-ui.card>
                     </div>
                     <div class="col-md-4 col-sm-6 footer-contact-item">
-                        <div class="footer-contact-card">
-                            <div class="icon">
-                                <i class="las la-phone-volume"></i>
-                            </div>
-                            <div class="content">
-                                <h5><a href="tel:{{ @$contact->contact_number }}">{{ @$contact->contact_number }}</a>
-                                </h5>
+                        <x-ui.card variant="elevated">
+                            <span class="fc-icon"><i class="las la-phone-volume"></i></span>
+                            <div class="fc-content">
+                                <h5><a href="tel:{{ @$contact->contact_number }}">{{ @$contact->contact_number }}</a></h5>
                                 <span class="caption font-size--14px">@lang('Call Us')</span>
                             </div>
-                        </div><!-- footer-contact-card end -->
+                        </x-ui.card>
                     </div>
                     <div class="col-md-4 col-sm-6 footer-contact-item">
-                        <div class="footer-contact-card">
-                            <div class="icon">
-                                <i class="las la-map-marked-alt"></i>
-                            </div>
-                            <div class="content">
+                        <x-ui.card variant="elevated">
+                            <span class="fc-icon"><i class="las la-map-marked-alt"></i></span>
+                            <div class="fc-content">
                                 <h5 class="text-white">{{ @$contact->address }}</h5>
                                 <span class="caption font-size--14px">@lang('Address')</span>
                             </div>
-                        </div><!-- footer-contact-card end -->
+                        </x-ui.card>
                     </div>
                 </div><!-- row end -->
             </div>
