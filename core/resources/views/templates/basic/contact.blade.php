@@ -10,39 +10,33 @@
                 <div class="col-lg-6">
                     <span class="subtitle fw-bold text--base font-size--18px border-left">{{ __(@$content->title) }}</span>
                     <h2 class="section-title">{{ __(@$content->heading) }}</h2>
-                    <ul class="contact-info-list mt-5">
-                        <li class="single-info d-flex flex-wrap align-items-center">
-                            <div class="single-info__icon bg--base text-white d-flex justify-content-center align-items-center rounded-3">
-                                <i class="las la-map-marked-alt"></i>
-                            </div>
-                            <div class="single-info__content">
+                    <div class="contact-info-list mt-5">
+                        <x-ui.card variant="outlined" class="md-contact-tile">
+                            <span class="md-contact-tile__icon"><i class="las la-map-marked-alt"></i></span>
+                            <div class="md-contact-tile__content">
                                 <h4 class="title">@lang('Our Address')</h4>
-                                <p class="mt-3">{{ __(@$content->address) }}</p>
+                                <p class="mt-2">{{ __(@$content->address) }}</p>
                             </div>
-                        </li><!-- single-info end -->
-                        <li class="single-info d-flex flex-wrap align-items-center">
-                            <div class="single-info__icon bg--base text-white d-flex justify-content-center align-items-center rounded-3">
-                                <i class="las la-envelope"></i>
-                            </div>
-                            <div class="single-info__content">
+                        </x-ui.card>
+                        <x-ui.card variant="outlined" class="md-contact-tile">
+                            <span class="md-contact-tile__icon"><i class="las la-envelope"></i></span>
+                            <div class="md-contact-tile__content">
                                 <h4 class="title">@lang('Email Address')</h4>
-                                <p class="mt-3">
+                                <p class="mt-2">
                                     <a href="mailto:{{ @$content->email_address }}" class="text--secondary">
                                         {{ @$content->email_address }}
                                     </a>
                                 </p>
                             </div>
-                        </li><!-- single-info end -->
-                        <li class="single-info d-flex flex-wrap align-items-center">
-                            <div class="single-info__icon bg--base text-white d-flex justify-content-center align-items-center rounded-3">
-                                <i class="las la-phone-volume"></i>
-                            </div>
-                            <div class="single-info__content">
+                        </x-ui.card>
+                        <x-ui.card variant="outlined" class="md-contact-tile">
+                            <span class="md-contact-tile__icon"><i class="las la-phone-volume"></i></span>
+                            <div class="md-contact-tile__content">
                                 <h4 class="title">@lang('Phone Number')</h4>
-                                <p class="mt-3"><a href="tel:{{ @$content->contact_number }}" class="text--secondary">{{ @$content->contact_number }}</a></p>
+                                <p class="mt-2"><a href="tel:{{ @$content->contact_number }}" class="text--secondary">{{ @$content->contact_number }}</a></p>
                             </div>
-                        </li><!-- single-info end -->
-                    </ul>
+                        </x-ui.card>
+                    </div>
                 </div>
                 <div class="col-lg-6 mt-lg-0 mt-5">
                     <form class="box-shadow p-sm-5 p-3 section--bg rounded-3 position-relative" method="post">

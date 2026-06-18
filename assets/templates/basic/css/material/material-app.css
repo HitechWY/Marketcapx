@@ -229,6 +229,70 @@
 }
 
 /* ---------------------------------------------------------------------
+   1d. CMS / blog / contact surfaces (R1b slice E).
+   --------------------------------------------------------------------- */
+/* Contact info tiles (left column of the contact page). */
+.md-contact-tile {
+    margin-bottom: 1rem;
+}
+
+.md-contact-tile .md-card__body {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+}
+
+.md-contact-tile__icon {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--md-sys-shape-corner-md);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-size: 24px;
+}
+
+.md-contact-tile__content .title {
+    margin: 0 0 2px;
+    font: var(--md-sys-typescale-title-medium);
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-contact-tile__content p {
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+    word-break: break-word;
+}
+
+/* Recent-posts sidebar is now an outlined md-card; keep its inner spacing. */
+.blog-sidebar.md-card .md-card__body .title {
+    margin-bottom: 1rem;
+}
+
+/* Policy / CMS long-form content inside an outlined md-card. */
+.md-prose .md-card__body {
+    padding: 1.75rem;
+}
+
+/* Blog-detail share buttons rebuilt as Material icon buttons. */
+.post-share .md-icon-button {
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface-variant);
+    text-decoration: none;
+}
+
+.post-share .md-icon-button:hover {
+    color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+}
+
+/* ---------------------------------------------------------------------
    2. Public footer — modern rebuild pilot. The footer keeps its CMS image
    background + dark treatment; the three contact tiles are now .md-card
    surfaces and the CTA is an .md-button. Give the cards a translucent

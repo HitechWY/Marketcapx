@@ -19,31 +19,15 @@
             <div class="row gy-4 justify-content-center">
                 @foreach ($blogs as $blog)
                     <div class="col-lg-4 col-md-6 wow fadeInUp" data-wow-duration="0.3" data-wow-delay="0.1s">
-                        <div class="blog-card">
-                            <div class="blog-card__thumb rounded-3">
-                                <img src="{{ frontendImage('blog', @$blog->data_values->image) }}" alt="image">
-                            </div>
-                            <div class="blog-card__meta">
-                                <div class="post-time">
-                                    <span class="post-date">{{ showDateTime(@$blog->created_at, 'd') }}</span>
-                                    <span class="post-month">{{ showDateTime(@$blog->created_at, 'M') }}</span>
-                                </div>
-
-                            </div>
-                            <div class="blog-card__content">
-                                <h4 class="blog-title">
-                                    <a href="{{ route('blog.details', $blog->slug) }}">
-                                        {{ __(@$blog->data_values->title) }}
-                                    </a>
-                                </h4>
-                                <p class="mt-3">
-                                    {{ strLimit(strip_tags(@$blog->data_values->description), 200) }}
-                                </p>
-                                <a href="{{ route('blog.details', $blog->slug) }}" class="font-size--14px fw-bold text--base mt-2">
-                                    @lang('Read More')
-                                </a>
-                            </div>
-                        </div><!-- blog-card end -->
+                        <x-ui.blog-card
+                            :image="frontendImage('blog', @$blog->data_values->image)"
+                            :day="showDateTime(@$blog->created_at, 'd')"
+                            :month="showDateTime(@$blog->created_at, 'M')"
+                            :title="__(@$blog->data_values->title)"
+                            :url="route('blog.details', $blog->slug)"
+                            :excerpt="strLimit(strip_tags(@$blog->data_values->description), 200)">
+                            <a href="{{ route('blog.details', $blog->slug) }}" class="md-blog-card__more">@lang('Read More')</a>
+                        </x-ui.blog-card>
                     </div>
                 @endforeach
 
