@@ -41,6 +41,8 @@ DB::transaction(function () use (...) {
 | Invoice payment (web) | `User/InvoiceController::invoicePaymentConfirmDone()` | Deferred wave: lock invoice (pay_status==0) + both wallets, debit/credit, flip pay_status, consume action; receiver-wallet null guard added. |
 | Hosted API payment (web) | `GetPaymentController::verifyPaymentConfirm()` | Deferred wave: lock apiPayment (status==0) + both wallets, set status BEFORE crediting, IPN curl/notify moved after commit. |
 | Escrow milestone pay | `User/MilestoneController::payMilestoneDone()` | Deferred wave: lock milestone (unfunded) + wallet + escrow row, re-check balance, debit + fund + bump escrow paid_amount, consume action. |
+| Escrow dispatch (release to seller) | `User/EscrowController::dispatchEscrow()` | `work/escrow-atomicity`: wrap status flip + seller credit + seller-charge + ledger in one tx; lock escrow + re-check `ESCROW_ACCEPTED` under lock (concurrent/duplicate dispatch = idempotent no-op); lock seller wallet; notify after commit. |
+| Escrow dispute resolution (admin) | `Admin/EscrowController::action()` | `work/escrow-atomicity`: wrap status change + buyer/seller payouts + ledger in one tx; lock escrow + re-check `ESCROW_DISPUTED` under lock (no double-pay); lock both wallets id-ascending; fixed the `dispute_charge` precedence bug (now `paid_amount - (buyer + seller)`, records-only — payouts unchanged). |
 
 All preserve every amount/charge/commission/remark/notification/redirect; only
 transaction + lock + single-use scaffolding was added, with notifications moved
@@ -48,27 +50,31 @@ after commit. All `php -l` clean; the route/limiter/boot test suite stays green
 (23 passed, 2 skipped). **Money math paths are not yet exercised by tests** (no
 model factories; schema is dump-based) — see §4.
 
-## 2. Deferred — documented, NOT rewritten (apply the §0 pattern with tests)
+## 2. Deferred — remaining lower-risk follow-ups
 
 The single-pattern deferred flows (transfer, withdrawal-submit, invoice,
-hosted API payment, milestone) were hardened + test-covered in the
-`work/deferred-money-flows` wave and are now in §1. **Escrow** remains
-documentation-only — it is a genuine multi-party state machine where a blind
-rewrite risks changing payout/dispute behavior, and it needs purpose-built
-multi-party fixtures before any code change.
+hosted API payment, milestone) were hardened in the `work/deferred-money-flows`
+wave, and the two **money-moving escrow paths** (dispatch + admin dispute
+resolution) were hardened + test-covered in the `work/escrow-atomicity` wave —
+all now in §1. What remains is escrow's **status-only** transitions, which move
+no money:
 
-| Flow | Controller / method | Concrete gaps (verified) / what to do |
-| ---- | ------------------- | ------------------------------------- |
-| Escrow dispatch (release to seller) | `User/EscrowController::dispatchEscrow()` (~L502–570) | Seller wallet credit + seller-charge deduction + ledger run with **no `DB::transaction`, no `lockForUpdate`**, guarded only by an `accepted()` status read outside any lock. Wrap the credit+charge+ledger, lock the escrow row and re-check status under the lock, lock the seller wallet. |
-| Escrow dispute resolution (admin) | `Admin/EscrowController::action()` (~L147–252) | Credits **both** buyer and seller wallets based on the dispute outcome with no tx/lock and only a `disputed()` status pre-check. Highest-risk path: wrap both credits + ledger, lock both wallets id-ascending, re-check the escrow status under the lock so a double-resolve cannot double-pay. |
-| Escrow accept / cancel / dispute | `User/EscrowController::accept()/cancel()/dispute()` | Status-only transitions (no balance move). Lower risk, but the status flip should still be re-checked under a lock to avoid conflicting concurrent transitions. |
+| Flow | Controller / method | Note |
+| ---- | ------------------- | ---- |
+| Escrow accept / cancel / dispute | `User/EscrowController::accept()/cancel()/dispute()` | Status-only transitions (no balance move). Lower risk; the status flip could still be re-checked under a lock to avoid conflicting concurrent transitions. |
 
-For each: apply the §0 pattern — transaction + `lockForUpdate` on every wallet
-and the escrow row, re-check state/balance under the lock, side effects after
-commit, locking multiple wallets in id-ascending order. **Build multi-party
-escrow fixtures first** (buyer + seller + escrow + milestones) and add
-double-submit/double-resolve tests before touching the code. Validate against
-the disposable `marketcapx_test` DB (see `tests/README.md`).
+Two pre-existing escrow correctness items found during the atomicity pass, left
+untouched (out of scope — they move no money and changing them alters
+notification/UX behavior):
+
+- `User/EscrowController::accept()` uses `if ($escrow->buyer_id = auth()->id())`
+  (assignment `=`, not `==`) — always takes the "buyer" branch when picking the
+  notification recipient. Notification-only; no balance impact.
+- `Admin/EscrowController::action()` references `$buyerWallet`/`$sellerWallet` in
+  the notify shortcodes; if only one side is paid (one amount is `0`) the other
+  was previously undefined. The `work/escrow-atomicity` change null-guards the
+  post-balance shortcodes, but a one-sided resolve path still warrants a product
+  review of the intended UX.
 
 ## 3. Notes / observations (not changed)
 
@@ -90,9 +96,14 @@ money-out, money-in, exchange (overdraft-safety), withdrawal reject, admin
 balance, plus the deferred wave — transfer (web+API), withdrawal-submit
 (web+API), invoice payment, hosted API payment, milestone pay — each asserts
 double-submit → exactly one effect — plus a `WalletAtomicity` rollback test.
-Suite: **42 passed, 1 skipped** (`BlockchainIpnTest`, which needs an
-external-API mock). Only **escrow** (§2) remains without tests; it needs
-multi-party fixtures before implementation.
+The `work/escrow-atomicity` wave added `EscrowDispatchFlowTest` (single dispatch
+credits the seller once + replay no-ops) and `EscrowDisputeResolveFlowTest`
+(single admin resolve pays both sides once, records `dispute_charge =
+paid_amount - (buyer + seller)`, replay no-ops), with `makeEscrow()` /
+`makeConversation()` fixtures. Suite: **44 passed, 1 skipped**
+(`BlockchainIpnTest`, which needs an external-API mock). All money-moving flows
+are now atomic + idempotent and test-covered; only escrow's status-only
+transitions (§2) remain as a lower-risk follow-up.
 
 ## 5. Constraints honored
 No migrations/seeders on `paytabz_DB`; no real gateway/payment calls; no broad
