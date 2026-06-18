@@ -155,3 +155,114 @@
         transition: none;
     }
 }
+
+/* =====================================================================
+   M3 (E) — Cards, widgets, stat/balance cards. Display only: surface,
+   shape and elevation are added; amounts, values, queries and data sources
+   are untouched (no markup is edited in this file).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   6. Generic cards → Material container surface + shape + elevation. Covers
+   .card and the theme's .custom--card across all three dashboards.
+   --------------------------------------------------------------------- */
+.agent-dashboard .card,
+.agent-dashboard .custom--card,
+.main-wrapper .card,
+.main-wrapper .custom--card {
+    background-color: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+.agent-dashboard .card-header,
+.main-wrapper .card-header,
+.main-wrapper .custom--card .card-header {
+    background-color: transparent;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard .card-title,
+.main-wrapper .card-title {
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------
+   7. Stat widgets (wallet balance tiles) → elevated Material tiles with a
+   brand-tinted surface so the balance figures read as the primary metric.
+   The amount text itself is theme-driven; we only style the tile + label.
+   --------------------------------------------------------------------- */
+.agent-dashboard .d-widget,
+.main-wrapper .d-widget {
+    background-color: color-mix(in srgb, var(--md-sys-color-primary) 7%, var(--md-sys-color-surface-container));
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+    transition: box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .d-widget:hover,
+.main-wrapper .d-widget:hover {
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+.agent-dashboard .d-widget__content i,
+.main-wrapper .d-widget__content i {
+    color: var(--md-sys-color-primary);
+}
+
+.agent-dashboard .d-widget__amount,
+.main-wrapper .d-widget__amount {
+    color: var(--md-sys-color-on-surface);
+}
+
+.agent-dashboard .d-widget__footer,
+.main-wrapper .d-widget__footer {
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* ---------------------------------------------------------------------
+   8. Sidebar balance card (user dashboard) — highlight the headline balance
+   on the primary role; the figure is backend-rendered and untouched.
+   --------------------------------------------------------------------- */
+.main-wrapper .main-balance {
+    color: var(--md-sys-color-primary);
+}
+
+.main-wrapper .caption-list-two .caption,
+.agent-dashboard .caption-list-two .caption {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.main-wrapper .caption-list-two .value,
+.agent-dashboard .caption-list-two .value {
+    color: var(--md-sys-color-on-surface);
+}
+
+/* ---------------------------------------------------------------------
+   9. Quick-link cards → Material outlined tiles with a state layer on hover.
+   --------------------------------------------------------------------- */
+.agent-dashboard .quick-link-card,
+.main-wrapper .quick-link-card {
+    border-radius: var(--md-sys-shape-corner-md);
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+                box-shadow var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.agent-dashboard .quick-link-card:hover,
+.main-wrapper .quick-link-card:hover {
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-dashboard .d-widget,
+    .main-wrapper .d-widget,
+    .agent-dashboard .quick-link-card,
+    .main-wrapper .quick-link-card {
+        transition: none;
+    }
+}
