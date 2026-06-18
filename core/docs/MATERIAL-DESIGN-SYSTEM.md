@@ -42,7 +42,8 @@ program; this doc tracks the system and per-phase status.
   dashboards + auth + checkout) and `admin/layouts/master.blade.php` load the
   token+component CSS, the Material Symbols font, and `material.js`, plus a tiny
   inline `<head>` script that applies the persisted `data-md-theme` before paint
-  (no flash). Default scheme: light.
+  (no flash). Default scheme: **dark** (premium fintech identity); the toggle
+  switches to light and persists the choice.
 
 ## How to adopt Material in a later phase
 

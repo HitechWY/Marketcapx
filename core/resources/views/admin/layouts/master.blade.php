@@ -11,10 +11,10 @@
         (function () {
             try {
                 var m = document.cookie.match("(?:^|; )md_theme=([^;]*)");
-                var t = m ? decodeURIComponent(m[1]) : (localStorage.getItem("md-theme") || "light");
-                document.documentElement.setAttribute("data-md-theme", t === "dark" ? "dark" : "light");
+                var t = m ? decodeURIComponent(m[1]) : (localStorage.getItem("md-theme") || "dark");
+                document.documentElement.setAttribute("data-md-theme", t === "light" ? "light" : "dark");
             } catch (e) {
-                document.documentElement.setAttribute("data-md-theme", "light");
+                document.documentElement.setAttribute("data-md-theme", "dark");
             }
         })();
     </script>

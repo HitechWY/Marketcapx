@@ -28,7 +28,7 @@
     }
 
     function currentTheme() {
-        return document.documentElement.getAttribute("data-md-theme") || "light";
+        return document.documentElement.getAttribute("data-md-theme") || "dark";
     }
 
     function setTheme(theme) {
