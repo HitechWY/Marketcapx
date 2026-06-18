@@ -58,7 +58,17 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
-        if (!cache()->get('SystemInstalled')) {
+        // Several boot-time reads below touch the database (module settings,
+        // general settings). Pure console commands (route:list, migrate, queue,
+        // schedule, …) must be able to boot WITHOUT a reachable application DB.
+        // PHPUnit is console too, but runningUnitTests() is true there, so the
+        // test suite keeps the real reads (its DB is reachable) and web behaviour
+        // is unchanged — this only short-circuits genuine artisan invocations.
+        $consoleWithoutDb = $this->app->runningInConsole() && !$this->app->runningUnitTests();
+
+        // The install redirect is an HTTP-only concern; header()/exit must never
+        // run inside an artisan command, so skip the whole check in console.
+        if (!$this->app->runningInConsole() && !cache()->get('SystemInstalled')) {
             $envFilePath = base_path('.env');
             if (!file_exists($envFilePath)) {
                 header('Location: install');
@@ -74,7 +84,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $viewShare['emptyMessage']       = 'Data not found';
-        $viewShare['module']             = ModuleSetting::get();
+        $viewShare['module']             = $consoleWithoutDb ? collect() : ModuleSetting::get();
 
         view()->share($viewShare);
 
@@ -120,7 +130,7 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
 
-        if (gs('force_ssl')) {
+        if (!$consoleWithoutDb && gs('force_ssl')) {
             \URL::forceScheme('https');
         }
 
