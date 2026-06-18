@@ -184,3 +184,95 @@
         transform: none;
     }
 }
+
+/* =====================================================================
+   M4 (F) — Admin tables, filters, badges, pagination. Read-only polish:
+   no links, routes, IDs, action-button behaviour, form contracts, status
+   transitions or data are changed (no markup edited).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   9. Data tables (.table--light.style--two) → row hover state layer + a
+   slightly stronger header rule. Keeps the existing light table colours.
+   --------------------------------------------------------------------- */
+.page-wrapper .table.table--light thead th {
+    letter-spacing: 0.02em;
+}
+
+.page-wrapper .table.table--light tbody tr {
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .table.table--light tbody tr:hover {
+    background-color: var(--ma-state-hover);
+}
+
+/* ---------------------------------------------------------------------
+   10. Filter / search panels → Material card shape + elevation.
+   --------------------------------------------------------------------- */
+.page-wrapper .responsive-filter-card {
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+.page-wrapper .form-control.searchInput,
+.page-wrapper .datepicker-here {
+    border-radius: var(--md-sys-shape-corner-sm);
+}
+
+/* ---------------------------------------------------------------------
+   11. Status badges → Material chip shape (full radius, label typescale).
+   Semantic fills (success/danger/warning/primary/dark) are left untouched.
+   --------------------------------------------------------------------- */
+.page-wrapper .badge {
+    border-radius: var(--md-sys-shape-corner-full);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 0.35em 0.7em;
+}
+
+/* ---------------------------------------------------------------------
+   12. Pagination → Material rounded page links with a state layer.
+   --------------------------------------------------------------------- */
+.page-wrapper .pagination .page-link {
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .pagination .page-item.active .page-link {
+    background-color: var(--ma-accent);
+    border-color: var(--ma-accent);
+}
+
+/* ---------------------------------------------------------------------
+   13. Action buttons → Material shape + press transition only (behaviour,
+   labels and values are unchanged; no submit/route logic touched).
+   --------------------------------------------------------------------- */
+.page-wrapper .btn {
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: box-shadow var(--md-sys-motion-duration-short, 150ms) ease,
+                transform var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .btn:active {
+    transform: translateY(1px);
+}
+
+/* ---------------------------------------------------------------------
+   14. Empty states (no records / no search results) → calm, centred muted.
+   --------------------------------------------------------------------- */
+.page-wrapper .empty-notification,
+.page-wrapper .empty-search {
+    opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-wrapper .table.table--light tbody tr,
+    .page-wrapper .pagination .page-link,
+    .page-wrapper .btn {
+        transition: none;
+    }
+    .page-wrapper .btn:active {
+        transform: none;
+    }
+}
