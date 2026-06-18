@@ -684,3 +684,81 @@ body {
     font-weight: var(--ds-font-weight-semibold);
     letter-spacing: -0.01em;
 }
+
+/* ----- Slice E — Blog / content readability -----
+   Listing card affordance, long-form article measure/rhythm, and a fix for the
+   share row whose dividers/borders main.css draws in rgba(0,0,0,.15) — invisible
+   on the dark theme. CSS-only; article HTML/content untouched. */
+
+/* Listing: clearer, tighter card heading (cards are already dark-glass +
+   equal-height from Phase 3 / Slice D). */
+.main-wrapper .blog-card .blog-title a {
+    font-weight: var(--ds-font-weight-semibold);
+    letter-spacing: -0.01em;
+}
+
+/* Article body: looser leading, a comfortable reading measure on the text
+   paragraph, paragraph spacing, scaled/rounded inline images, and heading
+   rhythm (the body renders arbitrary CMS HTML, so style common descendants).
+   Colour is left to the Phase-3 text rules so contrast is unchanged. */
+.main-wrapper .blog-details-content {
+    line-height: var(--ds-line-height-loose);
+}
+
+.main-wrapper .blog-details-content p {
+    max-width: 72ch;
+    margin-bottom: var(--ds-space-5);
+}
+
+.main-wrapper .blog-details-content :is(h2, h3, h4) {
+    margin-top: var(--ds-space-6);
+    margin-bottom: var(--ds-space-3);
+    font-weight: var(--ds-font-weight-semibold);
+}
+
+.main-wrapper .blog-details-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--ds-radius-md);
+}
+
+.main-wrapper .blog-details-title {
+    line-height: var(--ds-line-height-tight);
+    letter-spacing: -0.02em;
+}
+
+/* Share row: main.css draws the divider lines (.post-share) and icon borders
+   (.post-share li a) in rgba(0,0,0,.15) — invisible on dark. Re-draw as hairline
+   light borders so the affordance reads, with a brand hover. */
+.main-wrapper .post-share {
+    border-top-color: var(--pb-border);
+    border-bottom-color: var(--pb-border);
+}
+
+.main-wrapper .post-share li a {
+    border-color: var(--pb-border);
+    transition: color var(--ds-transition-fast),
+                border-color var(--ds-transition-fast),
+                background-color var(--ds-transition-fast);
+}
+
+.main-wrapper .post-share li a:hover {
+    border-color: rgba(var(--ds-color-primary-rgb), 0.50);
+    background-color: rgba(var(--ds-color-primary-rgb), 0.10);
+}
+
+/* Recent-posts sidebar: hover affordance on each post title. */
+.main-wrapper .blog-sidebar .s-post__title a {
+    transition: color var(--ds-transition-fast);
+}
+
+.main-wrapper .blog-sidebar .s-post__title a:hover {
+    color: var(--ds-color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .main-wrapper .post-share li a,
+    .main-wrapper .blog-sidebar .s-post__title a {
+        transition: none;
+    }
+}
