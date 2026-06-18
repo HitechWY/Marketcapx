@@ -1,0 +1,278 @@
+/* =====================================================================
+   MarketCap X — Material admin visual layer (M4)
+   ---------------------------------------------------------------------
+   ADMIN PANEL ONLY. Loaded once from admin/layouts/master.blade.php via
+   @stack('style') (after assets/admin/css/app.css), so it never reaches the
+   public marketing pages, auth pages, the user/merchant/agent dashboards or
+   checkout — those use different layouts. material-tokens.css already loads
+   in the admin master, so the --md-sys-* SHAPE / ELEVATION / MOTION tokens
+   are available here.
+
+   Strategy: the admin panel is an established LIGHT theme (#4634ff accents,
+   white cards) with 80+ forms and many third-party widgets (select2, date
+   pickers, nicEdit, charts). To avoid contrast regressions, this layer is
+   ADDITIVE and THEME-INDEPENDENT: it adds Material shape, elevation, motion,
+   focus-visible and neutral state layers on top of the existing colours. It
+   does NOT repaint admin backgrounds onto the dark/light --md-sys surface
+   roles (full admin token theming is deferred). Everything is scoped under
+   .page-wrapper (the admin shell root) as defence-in-depth.
+
+   PRESENTATION ONLY — no markup, DOM, route, permission or form contract is
+   touched (this file edits zero Blade and changes no admin behaviour).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. Admin-scoped accent + neutral state-layer helpers. We keep the admin's
+   own primary (#4634ff) as the accent so the Material polish harmonises with
+   the existing panel instead of introducing a second brand colour.
+   --------------------------------------------------------------------- */
+.page-wrapper {
+    --ma-accent: #4634ff;
+    --ma-state-hover: rgba(0, 0, 0, 0.04);
+    --ma-state-hover-strong: rgba(0, 0, 0, 0.06);
+    --ma-focus-ring: rgba(70, 52, 255, 0.45);
+}
+
+/* Smooth, accessible focus ring on interactive admin controls (additive;
+   does not change any control's behaviour). */
+.page-wrapper a:focus-visible,
+.page-wrapper button:focus-visible,
+.page-wrapper .nav-link:focus-visible,
+.page-wrapper .btn:focus-visible {
+    outline: 2px solid var(--ma-accent);
+    outline-offset: 2px;
+    border-radius: var(--md-sys-shape-corner-xs);
+}
+
+/* =====================================================================
+   M4 (D) — Admin shell: sidebar, topnav, breadcrumb, dropdowns.
+   Theme-independent polish: the dark sidebar uses WHITE state layers; the
+   light topbar/body uses DARK state layers. No colours are repainted onto
+   theme-dependent surface roles.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   2. Sidebar (dark) → Material nav: section labels, rounded link targets,
+   white state layer on hover/focus, and a left-accent + tint for the active
+   item (the M3-style selected state, adapted to the dark sidebar).
+   --------------------------------------------------------------------- */
+.page-wrapper .sidebar__menu-header {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.page-wrapper .sidebar .nav-link {
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease,
+                color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .sidebar .nav-link:hover,
+.page-wrapper .sidebar .nav-link:focus-visible {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.page-wrapper .sidebar .sidebar-menu-item.active > .nav-link,
+.page-wrapper .sidebar .sidebar-menu-item.active > a {
+    background-color: rgba(255, 255, 255, 0.10);
+    box-shadow: inset 3px 0 0 0 var(--ma-accent);
+}
+
+/* ---------------------------------------------------------------------
+   3. Topbar / breadcrumb. Soft Material elevation on the page title block;
+   the breadcrumb stays on its own colours (no repaint).
+   --------------------------------------------------------------------- */
+.page-wrapper .page-title {
+    letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------
+   4. Dropdown menus (profile, notifications) → Material menu surface:
+   M3 shape + elevation, dark state layer on items (light context).
+   --------------------------------------------------------------------- */
+.page-wrapper .dropdown-menu {
+    border-radius: var(--md-sys-shape-corner-md);
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.page-wrapper .dropdown-menu__item {
+    border-radius: var(--md-sys-shape-corner-xs);
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .dropdown-menu__item:hover,
+.page-wrapper .dropdown-menu__item:focus-visible {
+    background-color: var(--ma-state-hover);
+}
+
+/* ---------------------------------------------------------------------
+   5. Mobile sidebar toggle / close → Material icon-button affordance.
+   --------------------------------------------------------------------- */
+.page-wrapper .navbar-toggle-btn,
+.page-wrapper .res-sidebar-close-btn,
+.page-wrapper .breadcrumb-nav-open {
+    border-radius: var(--md-sys-shape-corner-full);
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-wrapper .sidebar .nav-link,
+    .page-wrapper .dropdown-menu__item,
+    .page-wrapper .navbar-toggle-btn,
+    .page-wrapper .res-sidebar-close-btn,
+    .page-wrapper .breadcrumb-nav-open {
+        transition: none;
+    }
+}
+
+/* =====================================================================
+   M4 (E) — Admin cards, dashboard widgets, stats. Display only: shape +
+   elevation are added; colours, values, queries and rendered amounts are
+   untouched.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   6. Generic cards → Material shape + soft elevation (keep the white fill).
+   --------------------------------------------------------------------- */
+.page-wrapper .card {
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+    transition: box-shadow var(--md-sys-motion-duration-medium, 250ms) ease;
+}
+
+.page-wrapper .card-title {
+    letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------
+   7. Dashboard stat widgets (.widget-card, coloured fills via bg--*) →
+   Material shape + elevation + a hover lift. The semantic fill colours and
+   the rendered amounts are left exactly as the backend renders them.
+   --------------------------------------------------------------------- */
+.page-wrapper .widget-card {
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+    transition: box-shadow var(--md-sys-motion-duration-medium, 250ms) ease,
+                transform var(--md-sys-motion-duration-medium, 250ms) ease;
+}
+
+.page-wrapper .widget-card:hover {
+    box-shadow: var(--md-sys-elevation-3);
+    transform: translateY(-2px);
+}
+
+.page-wrapper .widget-card-icon {
+    border-radius: var(--md-sys-shape-corner-md);
+}
+
+/* ---------------------------------------------------------------------
+   8. Chart containers → just round the corners so charts sit on a Material
+   card cleanly (visual only; no chart data/option touched).
+   --------------------------------------------------------------------- */
+.page-wrapper .card .apexcharts-canvas,
+.page-wrapper .chart-wrapper {
+    border-radius: var(--md-sys-shape-corner-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-wrapper .card,
+    .page-wrapper .widget-card {
+        transition: none;
+    }
+    .page-wrapper .widget-card:hover {
+        transform: none;
+    }
+}
+
+/* =====================================================================
+   M4 (F) — Admin tables, filters, badges, pagination. Read-only polish:
+   no links, routes, IDs, action-button behaviour, form contracts, status
+   transitions or data are changed (no markup edited).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   9. Data tables (.table--light.style--two) → row hover state layer + a
+   slightly stronger header rule. Keeps the existing light table colours.
+   --------------------------------------------------------------------- */
+.page-wrapper .table.table--light thead th {
+    letter-spacing: 0.02em;
+}
+
+.page-wrapper .table.table--light tbody tr {
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .table.table--light tbody tr:hover {
+    background-color: var(--ma-state-hover);
+}
+
+/* ---------------------------------------------------------------------
+   10. Filter / search panels → Material card shape + elevation.
+   --------------------------------------------------------------------- */
+.page-wrapper .responsive-filter-card {
+    border-radius: var(--md-sys-shape-corner-lg);
+    box-shadow: var(--md-sys-elevation-1);
+}
+
+.page-wrapper .form-control.searchInput,
+.page-wrapper .datepicker-here {
+    border-radius: var(--md-sys-shape-corner-sm);
+}
+
+/* ---------------------------------------------------------------------
+   11. Status badges → Material chip shape (full radius, label typescale).
+   Semantic fills (success/danger/warning/primary/dark) are left untouched.
+   --------------------------------------------------------------------- */
+.page-wrapper .badge {
+    border-radius: var(--md-sys-shape-corner-full);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 0.35em 0.7em;
+}
+
+/* ---------------------------------------------------------------------
+   12. Pagination → Material rounded page links with a state layer.
+   --------------------------------------------------------------------- */
+.page-wrapper .pagination .page-link {
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: background-color var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .pagination .page-item.active .page-link {
+    background-color: var(--ma-accent);
+    border-color: var(--ma-accent);
+}
+
+/* ---------------------------------------------------------------------
+   13. Action buttons → Material shape + press transition only (behaviour,
+   labels and values are unchanged; no submit/route logic touched).
+   --------------------------------------------------------------------- */
+.page-wrapper .btn {
+    border-radius: var(--md-sys-shape-corner-sm);
+    transition: box-shadow var(--md-sys-motion-duration-short, 150ms) ease,
+                transform var(--md-sys-motion-duration-short, 150ms) ease;
+}
+
+.page-wrapper .btn:active {
+    transform: translateY(1px);
+}
+
+/* ---------------------------------------------------------------------
+   14. Empty states (no records / no search results) → calm, centred muted.
+   --------------------------------------------------------------------- */
+.page-wrapper .empty-notification,
+.page-wrapper .empty-search {
+    opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-wrapper .table.table--light tbody tr,
+    .page-wrapper .pagination .page-link,
+    .page-wrapper .btn {
+        transition: none;
+    }
+    .page-wrapper .btn:active {
+        transform: none;
+    }
+}

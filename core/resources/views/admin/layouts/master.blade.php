@@ -40,6 +40,12 @@
     <link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/admin/css/app.css') }}">
 
+    {{-- Material M4: admin visual layer (admin panel only — loaded from the
+         admin master, never public/auth/dashboards/checkout). Additive Material
+         shape/elevation/motion/focus on top of the existing admin theme. Loads
+         after app.css so the Material layer wins. Presentation only. --}}
+    <link rel="stylesheet" href="{{ asset('assets/admin/css/material-admin.css') }}?v=1">
+
 
     @stack('style')
 </head>
