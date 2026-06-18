@@ -293,6 +293,103 @@
 }
 
 /* ---------------------------------------------------------------------
+   1e. Stat / brand-logo / testimonial components (R2 component sweep).
+   --------------------------------------------------------------------- */
+/* Stat tile (x-ui.stat) — overview section counters. Colours inherit so it
+   reads on the dark overview overlay (parent sets text-white) and anywhere else. */
+.md-stat {
+    padding-left: 1rem;
+    border-left: 3px solid var(--md-sys-color-primary);
+}
+
+.md-stat--left { text-align: left; }
+
+.md-stat__value {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 700;
+    line-height: 1.05;
+    color: inherit;
+}
+
+.md-stat__label {
+    margin-top: 0.35rem;
+    font: var(--md-sys-typescale-body-medium);
+    color: inherit;
+    opacity: 0.85;
+}
+
+/* Brand-logo chip (x-ui.brand-logo-card) — business section client logos.
+   A light chip is used deliberately: client logos are authored for light
+   backgrounds and would be unreadable on the dark theme surface (same call
+   the M-phase brand work made). One justified literal colour. */
+.md-brand-logo {
+    height: 100%;
+    background: #ffffff;
+    border-color: var(--md-sys-color-outline-variant);
+    transition: box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard),
+                transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+}
+
+.md-brand-logo:hover {
+    box-shadow: var(--md-sys-elevation-2);
+    transform: translateY(-3px);
+}
+
+.md-brand-logo__inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 72px;
+    padding: 1rem 1.25rem;
+}
+
+.md-brand-logo__inner img {
+    max-width: 100%;
+    max-height: 40px;
+    object-fit: contain;
+}
+
+/* Testimonial block (x-ui.testimonial-card) — inside the slick content slide. */
+.md-testimonial {
+    position: relative;
+}
+
+.md-testimonial__mark {
+    display: block;
+    font-size: 3.5rem;
+    line-height: 0.6;
+    color: var(--md-sys-color-primary);
+    opacity: 0.45;
+}
+
+.md-testimonial__quote {
+    margin: 0.75rem 0 1.25rem;
+    font: var(--md-sys-typescale-title-medium);
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-testimonial__author {
+    display: flex;
+    flex-direction: column;
+}
+
+.md-testimonial__name {
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-testimonial__role {
+    margin-top: 2px;
+    font: var(--md-sys-typescale-body-small);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .md-brand-logo { transition: none; }
+    .md-brand-logo:hover { transform: none; }
+}
+
+/* ---------------------------------------------------------------------
    2. Public footer — modern rebuild pilot. The footer keeps its CMS image
    background + dark treatment; the three contact tiles are now .md-card
    surfaces and the CTA is an .md-button. Give the cards a translucent

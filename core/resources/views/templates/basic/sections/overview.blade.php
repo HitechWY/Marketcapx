@@ -13,13 +13,10 @@
                 <p class="text-white mt-3 wow fadeInUp" data-wow-duration="0.3" data-wow-delay="0.5s">
                     {{ __(@$content->subheading) }}
                 </p>
-                <div class="row mt-5 wow fadeInUp gy-4" data-wow-duration="0.3" data-wow-delay="0.7s">
+                <div class="row mt-5 wow fadeInUp gy-4 text-white" data-wow-duration="0.3" data-wow-delay="0.7s">
                     @foreach ($elements as $element)
                         <div class="col-4">
-                            <div class="overview-single">
-                                <h3 class="overview-number text-white">{{ __(@$element->data_values->counter_digit) }}</h3>
-                                <p class="caption text-white">{{ __(@$element->data_values->title) }}</p>
-                            </div>
+                            <x-ui.stat :value="__(@$element->data_values->counter_digit)" :label="__(@$element->data_values->title)" align="left" />
                         </div>
                     @endforeach
                 </div>

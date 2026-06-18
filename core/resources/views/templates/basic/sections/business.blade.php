@@ -15,11 +15,11 @@
                 <div class="row">
                     @foreach ($elements as $element)
                         <div class="col-4 coutomer-item">
-                            <div class="coutomer-single">
+                            <x-ui.brand-logo-card>
                                 <img src="{{ frontendImage('business', @$element->data_values->client_logo, '140x60') }}"
                                     alt="@lang('image')"
                                 >
-                            </div>
+                            </x-ui.brand-logo-card>
                         </div><!-- coutomer-item end -->
                     @endforeach
                 </div>
