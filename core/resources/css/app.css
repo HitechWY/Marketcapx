@@ -1,0 +1,60 @@
+@import 'tailwindcss';
+
+/* =====================================================================
+   MarketCap X — Material Design 3 token bridge for the Inertia/Vue stack
+   ---------------------------------------------------------------------
+   F0 foundation. A ported subset of the existing Blade token layer
+   (assets/templates/basic/css/material/material-tokens.css) so the new
+   Vue surface shares the same brand anchor (#336699) and light/dark
+   schemes. Light = :root, dark = [data-md-theme="dark"] — the dark/light
+   attribute is set before paint by the Inertia root view (resources/
+   views/app.blade.php), the same mechanism the Blade layout uses.
+
+   As pages migrate (F1+), these tokens grow to match the full MD3 set and
+   the legacy Blade overlay CSS is retired per-page (per the F0–F8 plan).
+   ===================================================================== */
+
+:root {
+    --md-sys-color-primary: #336699;
+    --md-sys-color-on-primary: #ffffff;
+    --md-sys-color-primary-container: #d4e3f7;
+    --md-sys-color-on-primary-container: #0c1d2e;
+    --md-sys-color-background: #fdfcff;
+    --md-sys-color-on-background: #1a1c1e;
+    --md-sys-color-surface: #ffffff;
+    --md-sys-color-on-surface: #1a1c1e;
+    --md-sys-color-surface-container: #f1f3f8;
+    --md-sys-color-outline: #73777f;
+    --md-sys-color-error: #ba1a1a;
+}
+
+[data-md-theme='dark'] {
+    --md-sys-color-primary: #9ecaff;
+    --md-sys-color-on-primary: #00325a;
+    --md-sys-color-primary-container: #1d4974;
+    --md-sys-color-on-primary-container: #d4e3f7;
+    --md-sys-color-background: #1a1c1e;
+    --md-sys-color-on-background: #e3e2e6;
+    --md-sys-color-surface: #121316;
+    --md-sys-color-on-surface: #e3e2e6;
+    --md-sys-color-surface-container: #1e2023;
+    --md-sys-color-outline: #8d9199;
+    --md-sys-color-error: #ffb4ab;
+}
+
+/* Expose the MD3 tokens to Tailwind v4 as theme colours so utilities like
+   `bg-md-surface` / `text-md-on-surface` / `bg-md-primary` resolve to the
+   live token (and therefore track the active light/dark scheme). */
+@theme inline {
+    --color-md-primary: var(--md-sys-color-primary);
+    --color-md-on-primary: var(--md-sys-color-on-primary);
+    --color-md-primary-container: var(--md-sys-color-primary-container);
+    --color-md-on-primary-container: var(--md-sys-color-on-primary-container);
+    --color-md-background: var(--md-sys-color-background);
+    --color-md-on-background: var(--md-sys-color-on-background);
+    --color-md-surface: var(--md-sys-color-surface);
+    --color-md-on-surface: var(--md-sys-color-on-surface);
+    --color-md-surface-container: var(--md-sys-color-surface-container);
+    --color-md-outline: var(--md-sys-color-outline);
+    --color-md-error: var(--md-sys-color-error);
+}

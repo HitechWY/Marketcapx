@@ -1,6 +1,21 @@
 <?php
 
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+// F0 (Inertia/Vue foundation): isolated proof-of-concept route. Guest-accessible,
+// no DB access, no business logic. Renders resources/js/Pages/Poc/Hello.vue to prove
+// the new stack mounts (Vue + TS + Tailwind + MD3 tokens + Inertia props + Vite
+// manifest). Two-segment path, so it is never shadowed by the '/{slug}' catch-all
+// below. To be removed at the final cutover (F8).
+Route::get('poc/inertia', function () {
+    return Inertia::render('Poc/Hello', [
+        'message'        => 'Inertia + Vue 3 foundation is live.',
+        'framework'      => 'MarketCap X · F0',
+        'laravelVersion' => Application::VERSION,
+    ]);
+})->name('poc.inertia');
 
 // SECURITY (Phase 1): removed public unauthenticated GET /clear route that ran
 // Artisan optimize:clear with no auth (cache-wipe / DoS vector). Use artisan CLI instead.
