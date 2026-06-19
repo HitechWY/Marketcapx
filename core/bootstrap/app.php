@@ -73,6 +73,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\LanguageMiddleware::class,
             \App\Http\Middleware\ActiveTemplateMiddleware::class,
             \App\Http\Middleware\Logout::class,
+            // F0 (Inertia/Vue foundation): inert for Blade responses; only shapes
+            // responses carrying the X-Inertia header. Web group only — API/IPN untouched.
+            \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
         $middleware->alias([
