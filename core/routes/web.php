@@ -17,6 +17,27 @@ Route::get('poc/inertia', function () {
     ]);
 })->name('poc.inertia');
 
+// F1a (public Inertia PoC): isolated public preview of the new Vue/Tailwind public
+// surface (PublicLayout + header/footer + hero). Guest-accessible, NO DB access, NO
+// business logic — props are config()/static only (real read-only CMS data is wired
+// in F1b). Does NOT replace '/' or any live page. To be removed at the final cutover.
+Route::get('poc/public-home', function () {
+    return Inertia::render('Public/HomePreview', [
+        'brand'   => config('app.name', 'MarketCap X'),
+        'tagline' => 'Send, receive, and manage digital payments — fast, secure, and global.',
+        'features' => [
+            ['icon' => '⚡', 'title' => 'Instant transfers', 'body' => 'Move money between wallets in seconds with transparent, upfront fees.'],
+            ['icon' => '🛡', 'title' => 'Bank-grade security', 'body' => 'Multi-guard auth, 2FA, and KYC keep every account and transaction protected.'],
+            ['icon' => '🌍', 'title' => 'Global gateways', 'body' => 'Deposit and withdraw through a wide range of trusted payment providers.'],
+        ],
+        'stats' => [
+            ['value' => '32+', 'label' => 'Payment gateways'],
+            ['value' => '99.9%', 'label' => 'Uptime target'],
+            ['value' => '24/7', 'label' => 'Support'],
+        ],
+    ]);
+})->name('poc.public-home');
+
 // SECURITY (Phase 1): removed public unauthenticated GET /clear route that ran
 // Artisan optimize:clear with no auth (cache-wipe / DoS vector). Use artisan CLI instead.
 
