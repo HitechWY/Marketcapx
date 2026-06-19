@@ -31,7 +31,213 @@ class SiteController extends Controller
         $sections    = Page::where('tempname', activeTemplate())->where('slug', '/')->first();
         $seoContents = $sections->seo_content;
         $seoImage    = @$seoContents->image ? getImage(getFilePath('seo') . '/' . @$seoContents->image, getFileSize('seo')) : null;
-        return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage'));
+
+        // F1b: the public homepage is rendered via Inertia/Vue (Pages/Public/Home.vue)
+        // using the SAME backend CMS data (read-only). The Blade view 'Template::home'
+        // is intentionally retained, untouched, as an instant fallback.
+        //   ROLLBACK (one line): replace the return below with —
+        //   return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage'));
+        return inertia('Public/Home', [
+            'seo'  => [
+                'title'       => $pageTitle,
+                'description' => @$seoContents->description,
+                'keywords'    => @$seoContents->keywords,
+                'image'       => $seoImage,
+            ],
+            'home' => $this->homePageData($sections),
+        ]);
+    }
+
+    /**
+     * Build the Inertia homepage props from the existing CMS content (read-only).
+     * Mirrors the Blade banner + section partials' getContent()/frontendImage()/__()
+     * calls exactly — no new queries, no DB writes, no business logic.
+     */
+    protected function homePageData($page): array
+    {
+        $banner = @getContent('banner.content', true)?->data_values;
+
+        $data = [
+            'banner'   => $banner ? [
+                'title'             => __(@$banner->title),
+                'heading'           => __(str_replace('&amp;', '&', @$banner->heading)),
+                'subheading'        => __(@$banner->subheading),
+                'button_name'       => __(@$banner->button_name),
+                'button_link'       => @$banner->button_link,
+                'video_button_name' => __(@$banner->video_button_name),
+                'video_link'        => @$banner->video_link,
+                'background_image'  => frontendImage('banner', @$banner->background_image, '1920x1280'),
+            ] : null,
+            'sections' => [],
+        ];
+
+        $secs = ($page && $page->secs) ? json_decode($page->secs) : [];
+        foreach ($secs as $sec) {
+            $built = $this->homeSection($sec);
+            if ($built) {
+                $data['sections'][] = $built;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Map a single home section key to { key, content, elements } using the same
+     * content keys, image sizes and __() wrapping the matching Blade partial uses.
+     */
+    protected function homeSection(string $key): ?array
+    {
+        $content  = @getContent($key . '.content', true)?->data_values;
+        $cText    = fn ($v) => $v !== null ? __($v) : null;
+
+        switch ($key) {
+            case 'brands':
+                $els = @getContent('brands.element', orderById: true) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => ['heading' => $cText(@$content->heading)],
+                    'elements' => $els->map(fn ($e) => [
+                        'image' => frontendImage('brands', @$e->data_values->image, '60x32'),
+                    ])->values()->all(),
+                ];
+
+            case 'about':
+                $els = @getContent('about.element', orderById: true) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'title'           => $cText(@$content->title),
+                        'heading'         => $cText(@$content->heading),
+                        'short_details'   => $cText(@$content->short_details),
+                        'button_name'     => $cText(@$content->button_name),
+                        'button_link'     => @$content->button_link,
+                        'experience_text' => $cText(@$content->experience_text),
+                    ],
+                    'elements' => $els->map(fn ($e) => [
+                        'award_logo' => frontendImage('about', @$e->data_values->award_logo, '100x100'),
+                    ])->values()->all(),
+                ];
+
+            case 'service':
+                $els = @getContent('service.element', orderById: true) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'heading'    => $cText(@$content->heading),
+                        'subheading' => $cText(@$content->subheading),
+                    ],
+                    'elements' => $els->map(fn ($e) => [
+                        'title'        => $cText(@$e->data_values->title),
+                        'service_icon' => @$e->data_values->service_icon, // raw admin HTML/SVG
+                        'description'  => $cText(@$e->data_values->description),
+                    ])->values()->all(),
+                ];
+
+            case 'why_choose_us':
+                $els = @getContent('why_choose_us.element', orderById: true) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'heading'    => $cText(@$content->heading),
+                        'subheading' => $cText(@$content->subheading),
+                    ],
+                    'elements' => $els->map(fn ($e) => [
+                        'title'         => $cText(@$e->data_values->title),
+                        'short_details' => $cText(@$e->data_values->short_details),
+                        'icon'          => frontendImage('why_choose_us', @$e->data_values->icon, '65x65'),
+                    ])->values()->all(),
+                ];
+
+            case 'feature':
+                $els = @getContent('feature.element', orderById: true) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'heading'    => $cText(@$content->heading),
+                        'subheading' => $cText(@$content->subheading),
+                    ],
+                    'elements' => $els->map(fn ($e) => [
+                        'title'         => $cText(@$e->data_values->title),
+                        'short_details' => $cText(@$e->data_values->short_details),
+                        'icon'          => frontendImage('feature', @$e->data_values->icon, '65x65'),
+                    ])->values()->all(),
+                ];
+
+            case 'business':
+                $els = @getContent('business.element', orderById: true) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'title'      => $cText(@$content->title),
+                        'heading'    => $cText(@$content->heading),
+                        'subheading' => $cText(@$content->subheading),
+                    ],
+                    'elements' => $els->map(fn ($e) => [
+                        'client_logo' => frontendImage('business', @$e->data_values->client_logo, '140x60'),
+                    ])->values()->all(),
+                ];
+
+            case 'overview':
+                $els = @getContent('overview.element', orderById: true) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'heading'    => $cText(@$content->heading),
+                        'subheading' => $cText(@$content->subheading),
+                    ],
+                    'elements' => $els->map(fn ($e) => [
+                        'counter_digit' => $cText(@$e->data_values->counter_digit),
+                        'title'         => $cText(@$e->data_values->title),
+                    ])->values()->all(),
+                ];
+
+            case 'testimonial':
+                $els = @getContent('testimonial.element', orderById: true) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'title'      => $cText(@$content->title),
+                        'heading'    => $cText(@$content->heading),
+                        'subheading' => $cText(@$content->subheading),
+                    ],
+                    'elements' => $els->map(fn ($e) => [
+                        'author_name'  => $cText(@$e->data_values->author_name),
+                        'designation'  => $cText(@$e->data_values->designation),
+                        'quote'        => $cText(@$e->data_values->quote),
+                        'author_image' => frontendImage('testimonial', @$e->data_values->author_image, '1080x620'),
+                    ])->values()->all(),
+                ];
+
+            case 'subscribe':
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'heading'    => $cText(@$content->heading),
+                        'subheading' => $cText(@$content->subheading),
+                    ],
+                    'elements' => [],
+                ];
+
+            case 'blog':
+                $els = @getContent('blog.element', false, 3) ?: collect();
+                return [
+                    'key'      => $key,
+                    'content'  => [
+                        'title'      => $cText(@$content->title),
+                        'heading'    => $cText(@$content->heading),
+                        'subheading' => $cText(@$content->subheading),
+                    ],
+                    'elements' => $els->map(fn ($e) => [
+                        'title'       => $cText(@$e->data_values->title),
+                        'excerpt'     => strLimit(strip_tags((string) @$e->data_values->description), 200),
+                        'image'       => frontendImage('blog', 'thumb_' . @$e->data_values->image),
+                        'url'         => route('blog.details', $e->slug),
+                    ])->values()->all(),
+                ];
+        }
+
+        return null;
     }
 
     public function pages($slug)
