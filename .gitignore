@@ -25,6 +25,9 @@ core/public/build/
 core/public/hot
 public/build/
 public/hot
+# cPanel split: Vite emits into the project root (web root) — see core/vite.config.ts
+/build/
+/hot
 
 # ===== Laravel runtime / generated files =====
 core/storage/*.key
