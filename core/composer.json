@@ -12,6 +12,7 @@
         "coingate/coingate-php": "^4.1",
         "ezyang/htmlpurifier": "^4.17",
         "guzzlehttp/guzzle": "^7.8",
+        "inertiajs/inertia-laravel": "^3.1",
         "intervention/image": "^4.0.0",
         "laramin/utility": "^1.0",
         "laravel/framework": "^13.0",
@@ -26,6 +27,7 @@
         "razorpay/razorpay": "^2.9",
         "sendgrid/sendgrid": "^8.1",
         "stripe/stripe-php": "^20.0.0",
+        "tightenco/ziggy": "^2.6",
         "twilio/sdk": "^8.11.3",
         "vonage/client": "^4.0"
     },
