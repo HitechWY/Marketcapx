@@ -19,12 +19,17 @@
     --md-sys-color-on-primary: #ffffff;
     --md-sys-color-primary-container: #d4e3f7;
     --md-sys-color-on-primary-container: #0c1d2e;
+    --md-sys-color-secondary: #4f6275;
+    --md-sys-color-on-secondary: #ffffff;
     --md-sys-color-background: #fdfcff;
     --md-sys-color-on-background: #1a1c1e;
     --md-sys-color-surface: #ffffff;
     --md-sys-color-on-surface: #1a1c1e;
+    --md-sys-color-on-surface-variant: #43474e;
     --md-sys-color-surface-container: #f1f3f8;
+    --md-sys-color-surface-container-high: #ebeef3;
     --md-sys-color-outline: #73777f;
+    --md-sys-color-outline-variant: #c3c7cf;
     --md-sys-color-error: #ba1a1a;
 }
 
@@ -33,12 +38,17 @@
     --md-sys-color-on-primary: #00325a;
     --md-sys-color-primary-container: #1d4974;
     --md-sys-color-on-primary-container: #d4e3f7;
+    --md-sys-color-secondary: #b8c8da;
+    --md-sys-color-on-secondary: #233140;
     --md-sys-color-background: #1a1c1e;
     --md-sys-color-on-background: #e3e2e6;
     --md-sys-color-surface: #121316;
     --md-sys-color-on-surface: #e3e2e6;
+    --md-sys-color-on-surface-variant: #c3c7cf;
     --md-sys-color-surface-container: #1e2023;
+    --md-sys-color-surface-container-high: #282a2d;
     --md-sys-color-outline: #8d9199;
+    --md-sys-color-outline-variant: #43474e;
     --md-sys-color-error: #ffb4ab;
 }
 
@@ -50,11 +60,16 @@
     --color-md-on-primary: var(--md-sys-color-on-primary);
     --color-md-primary-container: var(--md-sys-color-primary-container);
     --color-md-on-primary-container: var(--md-sys-color-on-primary-container);
+    --color-md-secondary: var(--md-sys-color-secondary);
+    --color-md-on-secondary: var(--md-sys-color-on-secondary);
     --color-md-background: var(--md-sys-color-background);
     --color-md-on-background: var(--md-sys-color-on-background);
     --color-md-surface: var(--md-sys-color-surface);
     --color-md-on-surface: var(--md-sys-color-on-surface);
+    --color-md-on-surface-variant: var(--md-sys-color-on-surface-variant);
     --color-md-surface-container: var(--md-sys-color-surface-container);
+    --color-md-surface-container-high: var(--md-sys-color-surface-container-high);
     --color-md-outline: var(--md-sys-color-outline);
+    --color-md-outline-variant: var(--md-sys-color-outline-variant);
     --color-md-error: var(--md-sys-color-error);
 }
