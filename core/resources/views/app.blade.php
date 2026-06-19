@@ -23,7 +23,9 @@
 
     <title inertia>{{ config('app.name', 'MarketCap X') }}</title>
 
-    @routes
+    {{-- Ziggy: expose only the allow-listed 'public' route group (config/ziggy.php),
+         not the full application route table. See core/docs/INERTIA-PUBLIC-POC.md. --}}
+    @routes('public')
     @vite(['resources/css/app.css', 'resources/js/app.ts'])
     @inertiaHead
 </head>
