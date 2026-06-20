@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Models\Transaction;
+use App\Models\Wallet;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -94,6 +95,53 @@ trait BuildsPanelDashboard
             'histories'    => $histories->map(fn ($h) => $this->mapTransaction($h))->all(),
             'walletsUrl'   => Route::has("$prefix.wallets") ? route("$prefix.wallets") : null,
             'insightUrl'   => Route::has("$prefix.check.insight") ? route("$prefix.check.insight") : null,
+        ];
+    }
+
+    /**
+     * Read-only transactions props (paginator + filters + currency options).
+     *
+     * @return array<string, mixed>
+     */
+    protected function buildTransactionsProps($owner, $request): array
+    {
+        $transactions = $owner->trxLog($request);
+        $transactions->through(fn ($h) => $this->mapTransaction($h));
+
+        return [
+            'transactions' => $transactions,
+            'filters'      => [
+                'search'    => (string) $request->search,
+                'type'      => (string) $request->type,
+                'operation' => (string) $request->operation,
+                'time'      => (string) $request->time,
+                'currency'  => (string) $request->currency,
+            ],
+            'currencies'   => $owner->wallets()->with('currency')->get()
+                ->map(fn ($w) => $w->currency->currency_code)->unique()->values()->all(),
+        ];
+    }
+
+    /**
+     * Read-only wallets props.
+     *
+     * @return array<string, mixed>
+     */
+    protected function buildWalletsProps($owner, string $type, string $prefix): array
+    {
+        $wallets    = Wallet::hasCurrency()->where('user_id', $owner->id)->where('user_type', $type)
+            ->with('currency')->orderBy('balance', 'DESC')->get();
+        $transferOn = (bool) optional(module('transfer_money'))->status;
+
+        return [
+            'wallets' => $wallets->map(fn ($w) => [
+                'balance'     => showAmount($w->balance, $w->currency, currencyFormat: false),
+                'symbol'      => $w->currency->currency_symbol,
+                'code'        => $w->currency->currency_code,
+                'transferUrl' => ($transferOn && Route::has("$prefix.transfer"))
+                    ? route("$prefix.transfer", ['wallet' => $w->currency->currency_code])
+                    : null,
+            ])->all(),
         ];
     }
 }

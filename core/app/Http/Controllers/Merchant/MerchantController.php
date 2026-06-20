@@ -48,9 +48,9 @@ class MerchantController extends Controller
 
     public function wallets()
     {
-        $pageTitle = "All Wallets";
-        $wallets   = Wallet::hasCurrency()->where('user_id', merchant()->id)->where('user_type', 'MERCHANT')->with('currency')->orderBy('balance', 'DESC')->get();
-        return view('Template::merchant.all_wallets', compact('pageTitle', 'wallets'));
+        // F3b: read-only Inertia (same shape as user wallets). Rollback (one line):
+        //   $pageTitle = "All Wallets"; $wallets = Wallet::hasCurrency()->where('user_id', merchant()->id)->where('user_type', 'MERCHANT')->with('currency')->orderBy('balance', 'DESC')->get(); return view('Template::merchant.all_wallets', compact('pageTitle', 'wallets'));
+        return inertia('Merchant/Wallets', $this->buildWalletsProps(merchant(), 'MERCHANT', 'merchant'));
     }
 
     public function checkInsight(Request $req)
@@ -233,9 +233,9 @@ class MerchantController extends Controller
 
     public function trxHistory(Request $request)
     {
-        $pageTitle = $request->search ? "Search Result of #$request->search" : "Transaction History";
-        $histories = merchant()->trxLog($request);
-        return view('Template::merchant.trx_history', compact('pageTitle', 'histories'));
+        // F3b: read-only Inertia (same shape as user transactions). Rollback (one line):
+        //   $pageTitle = $request->search ? "Search Result of #$request->search" : "Transaction History"; $histories = merchant()->trxLog($request); return view('Template::merchant.trx_history', compact('pageTitle', 'histories'));
+        return inertia('Merchant/Transactions', $this->buildTransactionsProps(merchant(), $request));
     }
 
     public function kycForm()
