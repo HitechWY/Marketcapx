@@ -54,9 +54,14 @@ Ziggy serializes only the `public` group (`config/ziggy.php`); all in-app links 
 api-secret/gateway-credential/raw-KYC-path/cross-actor data in any prop.
 
 ## Remaining high-risk phases & recommended order
+> **F8 (safety foundation, docs+tests only — no behavior change) is complete.** It audited and
+> designed the prerequisites for phase 1 below: `RBAC-PERMISSION-AUDIT.md` (F8a, admin is flat),
+> `ADMIN-MUTATION-CONTRACT-AUDIT.md` (F8b), `ADMIN-AUDIT-LOG-READINESS.md` (F8c, metadata-only),
+> and `ADMIN-SAFE-MUTATION-ENDPOINT-DESIGN.md` (F8d, target contract + implementation order).
+
 1. **RBAC + admin mutation endpoints** — implement role/permission enforcement (draft only today),
    extract admin inline mutations (approve/reject/status/balance) into dedicated audited endpoints,
-   THEN migrate admin detail/approval pages to Inertia.
+   THEN migrate admin detail/approval pages to Inertia. **See the F8d design + order.**
 2. **Sanitized notification/email viewer** — safe read-only viewer before migrating notification
    history / email details.
 3. **In-SPA captcha strategy** — verify reCAPTCHA/custom-captcha rendering in Vue, then migrate
