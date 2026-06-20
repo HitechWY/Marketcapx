@@ -1,8 +1,15 @@
 # RBAC / Permission Audit — Current State (F8a)
 
-**Status:** read-only audit. Documents the admin authorization model **as it exists today**. No
-behavior changed. Companion to the design-only `RBAC-DESIGN.md` (the proposed future model) and the
+**Status:** read-only audit (point-in-time snapshot at F8a). Documents the admin authorization model
+as it existed before RBAC. Companion to `RBAC-DESIGN.md` (proposed model) and
 `ADMIN-SENSITIVE-ACTIONS-FREEZE-LIST.md` (what stays Blade).
+
+> **Superseded by F9 (foundation now implemented, allow-by-default).** The "flat admin" findings
+> below described the pre-F9 state. F9 added the RBAC schema, models, `PermissionCatalog`,
+> `rbac:install` seeder, and the `permission:<slug>` middleware applied to high-risk admin routes —
+> running **allow-by-default** (`config('rbac.enforce')=false`), so behavior is unchanged until an
+> owner enables deny-by-default. See `RBAC-SCHEMA.md`, `RBAC-SEEDING.md`,
+> `RBAC-DENY-BY-DEFAULT-READINESS.md`, and `F9-RBAC-ENFORCEMENT-FOUNDATION-REPORT.md`.
 
 ## Headline
 
