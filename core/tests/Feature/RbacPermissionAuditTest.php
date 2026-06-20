@@ -71,12 +71,16 @@ class RbacPermissionAuditTest extends TestCase
         }
     }
 
-    public function test_no_permission_or_role_middleware_alias_is_registered(): void
+    public function test_permission_middleware_alias_is_registered(): void
     {
-        $aliases = array_keys(app('router')->getMiddleware());
+        // F9d: the `permission` alias now exists (allow-by-default gate).
+        // (Replaces the F8a "no alias" guard — intended, documented evolution.)
+        // No separate `role` alias is used — gating is slug-based via `permission`.
+        $aliases = app('router')->getMiddleware();
 
-        $this->assertNotContains('permission', $aliases, 'No RBAC permission middleware should be registered yet.');
-        $this->assertNotContains('role', $aliases, 'No RBAC role middleware should be registered yet.');
+        $this->assertArrayHasKey('permission', $aliases, 'The `permission` alias should be registered (F9d).');
+        $this->assertSame(\App\Http\Middleware\PermissionMiddleware::class, $aliases['permission']);
+        $this->assertArrayNotHasKey('role', $aliases, 'No separate `role` alias — gating is slug-based.');
     }
 
     public function test_admin_model_exposes_rbac_api(): void
