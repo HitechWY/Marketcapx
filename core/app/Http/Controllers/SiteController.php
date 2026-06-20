@@ -240,6 +240,37 @@ class SiteController extends Controller
         return null;
     }
 
+    /**
+     * Build an ordered list of { key, content, elements } for a page's `secs`
+     * (read-only; reuses homeSection()). Used by the homepage and generic pages.
+     */
+    protected function sectionList($page): array
+    {
+        $secs = ($page && $page->secs) ? json_decode($page->secs) : [];
+        $out  = [];
+        foreach ($secs as $sec) {
+            $built = $this->homeSection($sec);
+            if ($built) {
+                $out[] = $built;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Shape SEO props for an Inertia public page (read-only).
+     */
+    protected function seoProps($title, $seoContents, $seoImage): array
+    {
+        $keywords = @$seoContents->keywords;
+        return [
+            'title'       => __($title),
+            'description' => @$seoContents->description,
+            'keywords'    => is_array($keywords) ? implode(',', $keywords) : $keywords,
+            'image'       => $seoImage,
+        ];
+    }
+
     public function pages($slug)
     {
         $page        = Page::where('tempname', activeTemplate())->where('slug', $slug)->firstOrFail();
@@ -247,7 +278,13 @@ class SiteController extends Controller
         $sections    = $page->secs;
         $seoContents = $page->seo_content;
         $seoImage    = @$seoContents->image ? getImage(getFilePath('seo') . '/' . @$seoContents->image, getFileSize('seo')) : null;
-        return view('Template::pages', compact('pageTitle', 'sections', 'seoContents', 'seoImage'));
+
+        // F1c-1: render via Inertia. Rollback (one line):
+        //   return view('Template::pages', compact('pageTitle', 'sections', 'seoContents', 'seoImage'));
+        return inertia('Public/Page', [
+            'seo'      => $this->seoProps($pageTitle, $seoContents, $seoImage),
+            'sections' => $this->sectionList($page),
+        ]);
     }
 
     public function contact()
@@ -312,7 +349,14 @@ class SiteController extends Controller
         $pageTitle   = $policy->data_values->title;
         $seoContents = $policy->seo_content;
         $seoImage    = @$seoContents->image ? frontendImage('policy_pages', $seoContents->image, getFileSize('seo'), true) : null;
-        return view('Template::policy', compact('policy', 'pageTitle', 'seoContents', 'seoImage'));
+
+        // F1c-1: render via Inertia. Rollback (one line):
+        //   return view('Template::policy', compact('policy', 'pageTitle', 'seoContents', 'seoImage'));
+        return inertia('Public/PolicyPage', [
+            'seo'     => $this->seoProps($pageTitle, $seoContents, $seoImage),
+            'title'   => __($pageTitle),
+            'details' => @$policy->data_values->details,
+        ]);
     }
 
     public function changeLanguage($lang = null)
@@ -346,8 +390,15 @@ class SiteController extends Controller
         $cookieContent = Frontend::where('data_keys', 'cookie.data')->first();
         abort_if($cookieContent->data_values->status != Status::ENABLE, 404);
         $pageTitle = 'Cookie Policy';
-        $cookie    = Frontend::where('data_keys', 'cookie.data')->first();
-        return view('Template::cookie', compact('pageTitle', 'cookie'));
+        $cookie    = $cookieContent;
+
+        // F1c-1: render via Inertia. Rollback (one line):
+        //   return view('Template::cookie', compact('pageTitle', 'cookie'));
+        return inertia('Public/CookiePolicy', [
+            'seo'     => ['title' => __($pageTitle), 'description' => null, 'keywords' => null, 'image' => null],
+            'title'   => __($pageTitle),
+            'details' => @$cookie->data_values->description,
+        ]);
     }
 
     public function placeholderImage($size = null)
