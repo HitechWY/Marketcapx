@@ -4,22 +4,21 @@ namespace App\Http\Middleware;
 
 use App\Models\ModuleSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
 
 /**
  * Inertia request handler (registered on the `web` group only — see bootstrap/app.php).
- * Inert for ordinary Blade responses: it only shapes responses carrying the X-Inertia
- * header, so existing Blade pages are unaffected.
+ * Inert for ordinary Blade responses (only shapes X-Inertia responses).
  *
- * F2a adds authenticated-user shared props as LAZY closures, so they evaluate ONLY when
- * an Inertia response is serialized (never on Blade pages or for guests where they return
- * null/empty). Only the curated, non-sensitive subset is exposed (see userProps()).
+ * Shared props are GUARD-AWARE (F3): they resolve the active panel via userGuard()
+ * (web/user, agent, merchant) so the user/merchant/agent Inertia surfaces each get the
+ * right curated user, module flags, and navigation. All lazy — evaluated only on Inertia
+ * responses; null/empty for guests and the admin guard (out of scope). Only a curated,
+ * non-sensitive subset is exposed (never password/secret/API-key fields).
  */
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root Blade template that boots the Inertia app.
-     */
     protected $rootView = 'app';
 
     public function version(Request $request): ?string
@@ -28,8 +27,6 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Props shared with every Inertia response.
-     *
      * @return array<string, mixed>
      */
     public function share(Request $request): array
@@ -37,29 +34,27 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'appName' => config('app.name'),
-            // Lazy: only evaluated when an Inertia response is built.
             'auth'    => [
-                'user' => fn () => $this->userProps($request),
+                'user' => fn () => $this->userProps(),
             ],
             'flash'   => [
-                // The existing session('notify') tuples ([status, message]); rendered by useFlash().
                 'notify' => fn () => session('notify', []),
             ],
-            'modules' => fn () => $this->userModules($request),
-            'nav'     => fn () => $this->userNav($request),
+            'modules' => fn () => $this->panelModules(),
+            'nav'     => fn () => $this->panelNav(),
             'locale'  => app()->getLocale(),
         ];
     }
 
     /**
-     * Curated, non-sensitive snapshot of the authenticated WEB-guard user (null otherwise).
-     * Never exposes password/remember_token/ver_code/balance/kyc_data (all in $hidden).
+     * Curated snapshot of the active panel user (web/agent/merchant), or null.
      *
      * @return array<string, mixed>|null
      */
-    protected function userProps(Request $request): ?array
+    protected function userProps(): ?array
     {
-        $user = $request->user(); // web guard
+        $guard = userGuard();
+        $user  = $guard['user'] ?? null;
         if (!$user) {
             return null;
         }
@@ -69,74 +64,140 @@ class HandleInertiaRequests extends Middleware
             'username' => $user->username,
             'fullname' => $user->fullname,
             'email'    => $user->email,
-            'image'    => $user->image ? getImage(getFilePath('userProfile') . '/' . $user->image) : null,
-            'kv'       => (int) $user->kv, // KYC status
-            'ts'       => (int) $user->ts, // 2FA status
+            'image'    => $this->userImage($user, $guard['type']),
+            'kv'       => (int) $user->kv,
+            'ts'       => (int) $user->ts,
+            'type'     => $guard['type'], // USER | AGENT | MERCHANT
         ];
     }
 
+    protected function userImage($user, ?string $type): ?string
+    {
+        if (empty($user->image)) {
+            return null;
+        }
+        $key = match ($type) {
+            'AGENT'    => 'agentProfile',
+            'MERCHANT' => 'merchantProfile',
+            default    => 'userProfile',
+        };
+        try {
+            return getImage(getFilePath($key) . '/' . $user->image);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     /**
-     * Enabled feature-module flags for the USER type (booleans only).
-     *
      * @return array<string, bool>
      */
-    protected function userModules(Request $request): array
+    protected function panelModules(): array
     {
-        if (!$request->user()) {
+        $type = userGuard()['type'] ?? null;
+        if (!$type) {
             return [];
         }
 
-        return ModuleSetting::where('user_type', 'USER')
+        return ModuleSetting::where('user_type', $type)
             ->pluck('status', 'slug')
             ->map(fn ($status) => (bool) $status)
             ->all();
     }
 
     /**
-     * Server-resolved navigation for the user shell. Money-movement links are emitted as
-     * plain resolved URLs here (not via client Ziggy) so their route names stay out of the
-     * page's Ziggy table. `actions` items are gated by the enabled modules.
+     * Server-resolved navigation for the active panel. Route names are emitted as
+     * resolved URLs (kept out of the client Ziggy table). Each entry is guarded by
+     * Route::has() so a panel only ever links to routes that exist.
      *
      * @return array<string, array<int, array<string, string>>>
      */
-    protected function userNav(Request $request): array
+    protected function panelNav(): array
     {
+        $type = userGuard()['type'] ?? null;
         $empty = ['primary' => [], 'actions' => [], 'account' => []];
-        if (!$request->user()) {
+        if (!$type) {
             return $empty;
         }
 
-        $modules = $this->userModules($request);
+        $modules = $this->panelModules();
         $on      = fn (string $key) => $modules[$key] ?? false;
+        $item    = fn (string $name, string $label, string $icon, array $params = []) => Route::has($name)
+            ? ['label' => $label, 'url' => route($name, $params), 'icon' => $icon]
+            : null;
+        $clean   = fn (array $items) => array_values(array_filter($items));
 
-        $actions = array_values(array_filter([
-            $on('add_money')      ? ['label' => 'Add Money', 'url' => route('user.deposit.index'), 'icon' => 'add-money'] : null,
-            $on('withdraw_money') ? ['label' => 'Withdraw', 'url' => route('user.withdraw'), 'icon' => 'withdraw'] : null,
-            $on('transfer_money') ? ['label' => 'Transfer', 'url' => route('user.transfer'), 'icon' => 'transfer'] : null,
-            $on('money_out')      ? ['label' => 'Money Out', 'url' => route('user.money.out'), 'icon' => 'money-out'] : null,
-            $on('make_payment')   ? ['label' => 'Make Payment', 'url' => route('user.payment'), 'icon' => 'payment'] : null,
-            $on('money_exchange') ? ['label' => 'Exchange', 'url' => route('user.exchange.money'), 'icon' => 'exchange'] : null,
-            $on('request_money')  ? ['label' => 'Request Money', 'url' => route('user.request.money'), 'icon' => 'request'] : null,
-            $on('create_invoice') ? ['label' => 'Invoice', 'url' => route('user.invoice.all'), 'icon' => 'invoice'] : null,
-            $on('create_voucher') ? ['label' => 'Voucher', 'url' => route('user.voucher.list'), 'icon' => 'voucher'] : null,
-            $on('escrow')         ? ['label' => 'Escrow', 'url' => route('user.escrow.index'), 'icon' => 'escrow'] : null,
-        ]));
+        if ($type === 'MERCHANT') {
+            return [
+                'primary' => $clean([
+                    $item('merchant.home', 'Dashboard', 'dashboard'),
+                    $item('merchant.transactions', 'Transactions', 'history'),
+                    $item('merchant.wallets', 'Wallets', 'wallet'),
+                    $item('merchant.withdraw.history', 'Withdraw History', 'receipt'),
+                ]),
+                'actions' => $clean([
+                    $item('merchant.withdraw', 'Withdraw', 'withdraw'),
+                ]),
+                'account' => $clean([
+                    $item('merchant.profile.setting', 'Profile', 'profile'),
+                    $item('merchant.change.password', 'Change Password', 'lock'),
+                    $item('merchant.twofactor', '2FA Security', 'shield'),
+                    $item('merchant.qr.code', 'My QR Code', 'qr'),
+                    $item('merchant.api.key', 'API Key', 'lock'),
+                    $item('merchant.logout', 'Logout', 'logout'),
+                ]),
+            ];
+        }
 
+        if ($type === 'AGENT') {
+            return [
+                'primary' => $clean([
+                    $item('agent.home', 'Dashboard', 'dashboard'),
+                    $item('agent.transactions', 'Transactions', 'history'),
+                    $item('agent.commission.log', 'Commission Log', 'invoice'),
+                    $item('agent.wallets', 'Wallets', 'wallet'),
+                ]),
+                'actions' => $clean([
+                    $on('money_in') ? $item('agent.money.in', 'Money In', 'add-money') : null,
+                    $on('add_money') ? $item('agent.deposit.history', 'Add Money', 'add-money') : null,
+                    $item('agent.withdraw', 'Withdraw', 'withdraw'),
+                ]),
+                'account' => $clean([
+                    $item('agent.profile.setting', 'Profile', 'profile'),
+                    $item('agent.change.password', 'Change Password', 'lock'),
+                    $item('agent.twofactor', '2FA Security', 'shield'),
+                    $item('agent.qr.code', 'My QR Code', 'qr'),
+                    $item('agent.logout', 'Logout', 'logout'),
+                ]),
+            ];
+        }
+
+        // USER (web guard)
         return [
-            'primary' => [
-                ['label' => 'Dashboard', 'url' => route('user.home'), 'icon' => 'dashboard'],
-                ['label' => 'Transactions', 'url' => route('user.transactions'), 'icon' => 'history'],
-                ['label' => 'Wallets', 'url' => route('user.wallets'), 'icon' => 'wallet'],
-                ['label' => 'Deposit History', 'url' => route('user.deposit.history'), 'icon' => 'receipt'],
-            ],
-            'actions' => $actions,
-            'account' => [
-                ['label' => 'Profile', 'url' => route('user.profile.setting'), 'icon' => 'profile'],
-                ['label' => 'Change Password', 'url' => route('user.change.password'), 'icon' => 'lock'],
-                ['label' => '2FA Security', 'url' => route('user.twofactor'), 'icon' => 'shield'],
-                ['label' => 'My QR Code', 'url' => route('user.qr.code'), 'icon' => 'qr'],
-                ['label' => 'Logout', 'url' => route('user.logout'), 'icon' => 'logout'],
-            ],
+            'primary' => $clean([
+                $item('user.home', 'Dashboard', 'dashboard'),
+                $item('user.transactions', 'Transactions', 'history'),
+                $item('user.wallets', 'Wallets', 'wallet'),
+                $item('user.deposit.history', 'Deposit History', 'receipt'),
+            ]),
+            'actions' => $clean([
+                $on('add_money') ? $item('user.deposit.index', 'Add Money', 'add-money') : null,
+                $on('withdraw_money') ? $item('user.withdraw', 'Withdraw', 'withdraw') : null,
+                $on('transfer_money') ? $item('user.transfer', 'Transfer', 'transfer') : null,
+                $on('money_out') ? $item('user.money.out', 'Money Out', 'money-out') : null,
+                $on('make_payment') ? $item('user.payment', 'Make Payment', 'payment') : null,
+                $on('money_exchange') ? $item('user.exchange.money', 'Exchange', 'exchange') : null,
+                $on('request_money') ? $item('user.request.money', 'Request Money', 'request') : null,
+                $on('create_invoice') ? $item('user.invoice.all', 'Invoice', 'invoice') : null,
+                $on('create_voucher') ? $item('user.voucher.list', 'Voucher', 'voucher') : null,
+                $on('escrow') ? $item('user.escrow.index', 'Escrow', 'escrow') : null,
+            ]),
+            'account' => $clean([
+                $item('user.profile.setting', 'Profile', 'profile'),
+                $item('user.change.password', 'Change Password', 'lock'),
+                $item('user.twofactor', '2FA Security', 'shield'),
+                $item('user.qr.code', 'My QR Code', 'qr'),
+                $item('user.logout', 'Logout', 'logout'),
+            ]),
         ];
     }
 }
