@@ -51,3 +51,28 @@ dangerous system operations. Companion: `ADMIN-READONLY-INERTIA-MIGRATION-PLAN.m
 Only **read-only list/detail/report/dashboard** GET pages (🟢 in the migration plan) are ever
 eligible for Inertia, and only after an `admin`-guard shared-props layer that is provably
 secret-free. Everything in this file stays Blade.
+
+---
+
+## F6 confirmation (post read-only migration)
+
+The F6 sprint migrated only read-only dashboard/list/report GET pages. The following remain
+**FROZEN (Blade, unchanged)** and were explicitly NOT migrated:
+- KYC approval/rejection (`admin.*.kyc.approve` / `.kyc.reject`); KYC detail/data pages.
+- Deposit approval/rejection (`admin.deposit.approve` / `.reject`).
+- Withdrawal approval/rejection (`admin.withdraw.data.approve` / `.reject`).
+- Gateway settings (automatic/manual) and withdraw/payment **method** settings.
+- System settings (general/system/configuration/logo/css/sitemap/robot/cookie/maintenance).
+- Admin/user/merchant/agent **status** mutation (ban/activate) + login-as-user (impersonation).
+- User/agent/merchant **balance** edits (`add.sub.balance`).
+- Notification/email/SMS/push **template + setting** mutations (+ tests).
+- Cron/system actions (cron.*, system optimize/update).
+- File/download actions exposing private documents (attachment/ticket/CSV/push downloads).
+- Support ticket reply/close/delete (mutation).
+- Role/permission changes (RBAC — not implemented).
+- All destructive/delete actions.
+- Also kept Blade for sensitivity: `notificationHistory` (raw message body + recipient) and
+  `emailDetails` (raw email HTML), plus admin login (captcha).
+
+Read-only rows in the migrated lists/reports are explicitly field-mapped and serialize NO
+password/remember_token/secret_api_key/balance/kyc_data/gateway-`detail`/`withdraw_information`.
