@@ -11,6 +11,7 @@ use App\Models\Form;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Rules\FileTypeValidate;
+use App\Traits\BuildsPanelDashboard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -18,6 +19,7 @@ use Illuminate\Validation\Rules\Password;
 
 class MerchantController extends Controller
 {
+    use BuildsPanelDashboard;
 
     public function __construct()
     {
@@ -39,7 +41,9 @@ class MerchantController extends Controller
         $kyc      = merchant()->kycStyle();
         $merchant = merchant();
 
-        return view('Template::merchant.dashboard', compact('pageTitle', 'totalAddMoney', 'totalWithdraw', 'wallets', 'histories', 'totalMoneyInOut', 'kyc', 'userKyc', 'report', 'merchant'));
+        // F3a: read-only Inertia (same data shape as user dashboard). Rollback (one line):
+        //   return view('Template::merchant.dashboard', compact('pageTitle', 'totalAddMoney', 'totalWithdraw', 'wallets', 'histories', 'totalMoneyInOut', 'kyc', 'userKyc', 'report', 'merchant'));
+        return inertia('Merchant/Dashboard', $this->buildDashboardProps(merchant(), 'MERCHANT', 'merchant'));
     }
 
     public function wallets()
