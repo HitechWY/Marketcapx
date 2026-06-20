@@ -152,7 +152,17 @@ class UserController extends Controller
         $secret    = $ga->createSecret();
         $qrCodeUrl = $ga->getQRCodeGoogleUrl($user->username . '@' . gs('site_name'), $secret);
         $pageTitle = '2FA Security';
-        return view('Template::user.twofactor', compact('pageTitle', 'secret', 'qrCodeUrl', 'user'));
+
+        // F2c: read GET via Inertia; the POST create2fa()/disable2fa() flows are UNCHANGED
+        // (native forms). Rollback (one line):
+        //   return view('Template::user.twofactor', compact('pageTitle', 'secret', 'qrCodeUrl', 'user'));
+        return inertia('User/TwoFactor', [
+            'enabled'    => (bool) $user->ts,
+            'secret'     => $secret,
+            'qrCodeUrl'  => $qrCodeUrl,
+            'enableUrl'  => route('user.twofactor.enable'),
+            'disableUrl' => route('user.twofactor.disable'),
+        ]);
     }
 
     public function create2fa(Request $request)
@@ -325,7 +335,14 @@ class UserController extends Controller
         $qrCode     = $user->createQrCode();
         $uniqueCode = $qrCode->unique_code;
         $qrCode     = cryptoQR($uniqueCode);
-        return view('Template::user.qr_code', compact('pageTitle', 'qrCode', 'uniqueCode'));
+
+        // F2c: read-only Inertia. Rollback (one line):
+        //   return view('Template::user.qr_code', compact('pageTitle', 'qrCode', 'uniqueCode'));
+        return inertia('User/QrCode', [
+            'qrCode'      => $qrCode,
+            'uniqueCode'  => $uniqueCode,
+            'downloadUrl' => route('user.qr.code.jpg'),
+        ]);
     }
 
     public function downLoadQrCodeJpg()

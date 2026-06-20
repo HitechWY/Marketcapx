@@ -14,7 +14,27 @@ class ProfileController extends Controller
     {
         $pageTitle = "Profile Setting";
         $user = auth()->user();
-        return view('Template::user.profile_setting', compact('pageTitle','user'));
+
+        // F2c: read GET via Inertia; the POST submitProfile() flow is UNCHANGED (native form).
+        // Rollback (one line):
+        //   return view('Template::user.profile_setting', compact('pageTitle','user'));
+        return inertia('User/Profile', [
+            'profile'   => [
+                'fullname'  => $user->fullname,
+                'username'  => $user->username,
+                'email'     => $user->email,
+                'mobile'    => $user->mobile,
+                'country'   => $user->country_name,
+                'image'     => $user->image ? getImage(getFilePath('userProfile') . '/' . $user->image, getFileSize('userProfile')) : null,
+                'firstname' => $user->firstname,
+                'lastname'  => $user->lastname,
+                'address'   => $user->address,
+                'state'     => $user->state,
+                'zip'       => $user->zip,
+                'city'      => $user->city,
+            ],
+            'actionUrl' => route('user.profile.setting'),
+        ]);
     }
 
     public function submitProfile(Request $request)
@@ -56,7 +76,14 @@ class ProfileController extends Controller
     public function changePassword()
     {
         $pageTitle = 'Change Password';
-        return view('Template::user.password', compact('pageTitle'));
+
+        // F2c: read GET via Inertia; the POST submitPassword() flow is UNCHANGED (native form).
+        // Rollback (one line):
+        //   return view('Template::user.password', compact('pageTitle'));
+        return inertia('User/ChangePassword', [
+            'securePassword' => (bool) gs('secure_password'),
+            'actionUrl'      => route('user.change.password'),
+        ]);
     }
 
     public function submitPassword(Request $request)
