@@ -11,6 +11,7 @@ use App\Models\Form;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Rules\FileTypeValidate;
+use App\Traits\BuildsPanelDashboard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -18,6 +19,7 @@ use Illuminate\Validation\Rules\Password;
 
 class AgentController extends Controller
 {
+    use BuildsPanelDashboard;
 
     public function __construct()
     {
@@ -41,9 +43,9 @@ class AgentController extends Controller
         $totalMoneyInOut = $agent->moneyInOut();
         $kyc             = $agent->kycStyle();
 
-        return view('Template::agent.dashboard', compact(
-            'pageTitle', 'wallets', 'histories', 'totalMoneyInOut', 'userKyc', 'kyc', 'totalAddMoney', 'totalWithdraw', 'report', 'agent')
-        );
+        // F3c: read-only Inertia (same data shape as user dashboard). Rollback (one line):
+        //   return view('Template::agent.dashboard', compact('pageTitle', 'wallets', 'histories', 'totalMoneyInOut', 'userKyc', 'kyc', 'totalAddMoney', 'totalWithdraw', 'report', 'agent'));
+        return inertia('Agent/Dashboard', $this->buildDashboardProps(agent(), 'AGENT', 'agent'));
     }
 
     public function wallets()
