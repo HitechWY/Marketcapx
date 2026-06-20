@@ -24,50 +24,43 @@ use Tests\TestCase;
  */
 class RbacPermissionAuditTest extends TestCase
 {
-    /** High-risk admin mutation routes that today rely solely on the admin guard. */
+    /** High-risk admin mutation routes => the permission slug each now carries (F9e). */
     private const HIGH_RISK_MUTATION_ROUTES = [
-        'admin.users.add.sub.balance',
-        'admin.users.kyc.approve',
-        'admin.users.status',
-        'admin.deposit.approve',
-        'admin.withdraw.data.approve',
+        'admin.users.add.sub.balance' => 'permission:admin.users.balance.adjust',
+        'admin.users.kyc.approve'     => 'permission:admin.users.kyc.approve',
+        'admin.users.status'          => 'permission:admin.users.status.update',
+        'admin.deposit.approve'       => 'permission:admin.deposits.approve',
+        'admin.withdraw.data.approve' => 'permission:admin.withdrawals.approve',
     ];
 
-    public function test_high_risk_admin_mutations_are_gated_only_by_auth_guard(): void
+    public function test_high_risk_admin_mutations_carry_auth_guard_and_permission(): void
     {
+        // F9e: these routes are now gated by the admin guard AND a permission:<slug>
+        // (allow-by-default until rbac.enforce). Replaces the F8a "only auth guard"
+        // baseline — intended, documented evolution.
         $routes = Route::getRoutes();
         $aliases = app('router')->getMiddleware();
 
-        foreach (self::HIGH_RISK_MUTATION_ROUTES as $name) {
+        foreach (self::HIGH_RISK_MUTATION_ROUTES as $name => $permission) {
             $route = $routes->getByName($name);
             $this->assertNotNull($route, "Expected admin mutation route [{$name}] to exist.");
 
-            // Resolve route middleware, expanding aliases (e.g. 'admin' => RedirectIfNotAdmin)
-            // to their concrete classes.
-            $resolved = array_map(
-                fn ($mw) => $aliases[$mw] ?? $mw,
-                $route->gatherMiddleware()
-            );
+            $gathered = $route->gatherMiddleware();
 
+            // admin guard still present (resolve aliases to concrete classes).
+            $resolved = array_map(fn ($mw) => $aliases[$mw] ?? $mw, $gathered);
             $this->assertContains(
                 RedirectIfNotAdmin::class,
                 $resolved,
-                "[{$name}] must be gated by the admin auth guard."
+                "[{$name}] must still be gated by the admin auth guard."
             );
 
-            // No authorization layer exists today: assert no permission/role middleware.
-            foreach ($resolved as $mw) {
-                $this->assertStringNotContainsStringIgnoringCase(
-                    'permission',
-                    (string) $mw,
-                    "[{$name}] unexpectedly carries permission middleware [{$mw}]."
-                );
-                $this->assertDoesNotMatchRegularExpression(
-                    '/\\\\Role[A-Za-z]*$|\\bRoleMiddleware\\b/',
-                    (string) $mw,
-                    "[{$name}] unexpectedly carries role middleware [{$mw}]."
-                );
-            }
+            // permission middleware now present.
+            $this->assertContains(
+                $permission,
+                $gathered,
+                "[{$name}] must carry [{$permission}] (F9e)."
+            );
         }
     }
 
