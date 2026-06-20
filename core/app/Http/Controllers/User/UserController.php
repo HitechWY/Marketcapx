@@ -39,7 +39,56 @@ class UserController extends Controller
             ->with('currency', 'receiverUser', 'receiverAgent', 'receiverMerchant')->orderBy('id', 'desc')->take(10)
             ->get();
 
-        return view('Template::user.dashboard', compact('pageTitle', 'wallets', 'totalBalance', 'totalMoneyInOut', 'kyc', 'user', 'histories'));
+        // F2a: render the user dashboard via Inertia using the SAME read-only data.
+        // The Blade view is retained, untouched, as fallback. Rollback (one line):
+        //   return view('Template::user.dashboard', compact('pageTitle', 'wallets', 'totalBalance', 'totalMoneyInOut', 'kyc', 'user', 'histories'));
+        $kycContent = @getContent('kyc.content', true)?->data_values;
+
+        return inertia('User/Dashboard', [
+            'wallets'      => $wallets->map(fn ($w) => [
+                'balance'     => showAmount($w->balance, $w->currency, currencyFormat: false),
+                'symbol'      => $w->currency->currency_symbol,
+                'code'        => $w->currency->currency_code,
+                'transferUrl' => route('user.transfer', ['wallet' => $w->currency->currency_code]),
+            ])->all(),
+            'totalBalance' => [
+                'amount' => showAmount(array_sum($totalBalance), currencyFormat: false),
+                'symbol' => gs('cur_sym'),
+                'code'   => gs('cur_text'),
+            ],
+            'insight'      => [
+                'in'  => $totalMoneyInOut['totalMoneyIn'],
+                'out' => $totalMoneyInOut['totalMoneyOut'],
+            ],
+            'kyc'          => [
+                'status'          => (int) $user->kv, // 0 unverified, 1 verified, 2 pending
+                'rejectionReason' => $user->kyc_rejection_reason,
+                'messages'        => [
+                    'reject'   => $kycContent ? __(@$kycContent->reject) : null,
+                    'required' => $kycContent ? __(@$kycContent->required) : null,
+                    'pending'  => $kycContent ? __(@$kycContent->pending) : null,
+                ],
+                'formUrl'         => route('user.kyc.form'),
+                'dataUrl'         => route('user.kyc.data'),
+            ],
+            'histories'    => $histories->map(fn ($h) => [
+                'trxType'      => $h->trx_type,
+                'remark'       => __(ucwords(str_replace('_', ' ', (string) $h->remark))),
+                'date'         => showDateTime($h->created_at, 'M d Y @g:i:a'),
+                'details'      => __((string) $h->details),
+                'receiver'     => $h->receiver ? @$h->receiver->username : null,
+                'amount'       => showAmount($h->amount, $h->currency, currencyFormat: false),
+                'code'         => $h->currency->currency_code,
+                'trx'          => $h->trx,
+                'charge'       => (float) $h->charge,
+                'chargeType'   => $h->charge_type,
+                'chargeFmt'    => showAmount($h->charge, $h->currency, currencyFormat: false),
+                'beforeCharge' => showAmount($h->before_charge, $h->currency, currencyFormat: false),
+                'postBalance'  => showAmount($h->post_balance, $h->currency, currencyFormat: false),
+            ])->all(),
+            'walletsUrl'   => route('user.wallets'),
+            'insightUrl'   => route('user.check.insight'),
+        ]);
     }
 
     public function depositHistory(Request $request)
