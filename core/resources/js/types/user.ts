@@ -33,7 +33,7 @@ export interface DashboardWallet {
     balance: string;
     symbol: string;
     code: string;
-    transferUrl: string;
+    transferUrl: string | null;
 }
 
 export interface TotalBalance {
@@ -56,6 +56,47 @@ export interface DashboardTransaction {
     chargeFmt: string;
     beforeCharge: string;
     postBalance: string;
+}
+
+export interface TxFilters {
+    search: string;
+    type: string;
+    operation: string;
+    time: string;
+    currency: string;
+}
+
+export interface DepositRow {
+    trx: string;
+    gateway: string | null;
+    date: string;
+    dateHuman: string;
+    amount: string;
+    charge: string;
+    total: string;
+    symbol: string;
+    code: string;
+    statusBadge: string;
+    status: number;
+    isManual: boolean;
+    detail: Array<{ name: string; type: string; value: string | null }>;
+    adminFeedback: string | null;
+}
+
+export interface WithdrawRow {
+    trx: string;
+    method: string | null;
+    date: string;
+    dateHuman: string;
+    symbol: string | null;
+    code: string | null;
+    amount: string;
+    charge: string;
+    afterCharge: string;
+    statusBadge: string;
+    status: number;
+    information: unknown[];
+    adminFeedback: string | null;
 }
 
 export interface DashboardKyc {
