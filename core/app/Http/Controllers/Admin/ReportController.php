@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\NotificationLog;
 use App\Models\Transaction;
 use App\Models\UserLogin;
+use App\Traits\BuildsAdminReadonly;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
+    use BuildsAdminReadonly;
+
     public function transaction(Request $request, $userId = null)
     {
         $pageTitle = 'Transaction Logs';
@@ -37,7 +40,47 @@ class ReportController extends Controller
 
         $transactions = $transactions->paginate(getPaginate());
 
-        return view('admin.reports.transactions', compact('pageTitle', 'transactions', 'remarks'));
+        // F6c: read-only Inertia transaction report. Rollback (one line):
+        //   return view('admin.reports.transactions', compact('pageTitle', 'transactions', 'remarks'));
+        $transactions->appends(request()->all());
+        $transactions->through(fn ($t) => $this->mapAdminTransaction($t));
+
+        return inertia('Admin/Transactions', [
+            'pageTitle'    => $pageTitle,
+            'transactions' => $transactions,
+            'filters'      => [
+                'search'    => (string) request('search'),
+                'user_type' => strtolower((string) request('user_type')),
+                'currency'  => (string) request('currency'),
+                'trx_type'  => (string) request('trx_type'),
+                'remark'    => (string) request('remark'),
+                'date'      => (string) request('date'),
+            ],
+            'currencies'   => $this->currencyOptions(),
+            'remarks'      => $remarks->map(fn ($r) => ['value' => $r->remark, 'label' => keyToTitle($r->remark)])->values()->all(),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function mapAdminTransaction($t): array
+    {
+        return [
+            'id'          => $t->id,
+            'fullname'    => @$t->getUser->fullname,
+            'username'    => @$t->getUser->username,
+            'userType'    => $t->user_type,
+            'trx'         => $t->trx,
+            'date'        => showDateTime($t->created_at),
+            'dateHuman'   => diffForHumans($t->created_at),
+            'amount'      => showAmount($t->amount, currencyFormat: false),
+            'trxType'     => $t->trx_type,
+            'code'        => @$t->currency->currency_code,
+            'postBalance' => showAmount($t->post_balance, currencyFormat: false),
+            'details'     => __((string) $t->details),
+            'receiver'    => $t->receiver ? @$t->receiver->username : null,
+        ];
     }
 
     public function loginHistory(Request $request)
@@ -67,14 +110,65 @@ class ReportController extends Controller
         }
 
         $loginLogs = $loginLogs->orderBy('id', 'desc')->paginate(getPaginate());
-        return view('admin.reports.logins', compact('pageTitle', 'loginLogs'));
+
+        // F6c: read-only Inertia login history. Rollback (one line):
+        //   return view('admin.reports.logins', compact('pageTitle', 'loginLogs'));
+        return $this->loginInertia($pageTitle, $loginLogs, true);
     }
 
     public function loginIpHistory($ip)
     {
         $pageTitle = 'Login by - ' . $ip;
         $loginLogs = UserLogin::where('user_ip', $ip)->orderBy('id', 'desc')->with('user')->paginate(getPaginate());
-        return view('admin.reports.logins', compact('pageTitle', 'loginLogs', 'ip'));
+
+        // F6c: read-only Inertia login history (by IP). Rollback (one line):
+        //   return view('admin.reports.logins', compact('pageTitle', 'loginLogs', 'ip'));
+        return $this->loginInertia($pageTitle, $loginLogs, false, $ip);
+    }
+
+    /**
+     * @return \Inertia\Response
+     */
+    protected function loginInertia(string $pageTitle, $loginLogs, bool $showFilter, ?string $ip = null)
+    {
+        $loginLogs->appends(request()->all());
+        $loginLogs->through(fn ($l) => $this->mapLoginRow($l));
+
+        return inertia('Admin/LoginHistory', [
+            'pageTitle'   => $pageTitle,
+            'logins'      => $loginLogs,
+            'showFilter'  => $showFilter,
+            'filters'     => [
+                'search'    => (string) request('search'),
+                'user_type' => strtolower((string) request('user_type')),
+                'date'      => (string) request('date'),
+            ],
+            'ip'          => $ip,
+            'ipLookupUrl' => $ip ? 'https://www.ip2location.com/' . $ip : null,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function mapLoginRow($l): array
+    {
+        $type = $l->user_id ? 'USER' : ($l->agent_id ? 'AGENT' : ($l->merchant_id ? 'MERCHANT' : '—'));
+
+        return [
+            'id'        => $l->id,
+            'fullname'  => @$l->showUser->fullname,
+            'username'  => @$l->showUser->username,
+            'userType'  => $type,
+            'date'      => showDateTime($l->created_at),
+            'dateHuman' => diffForHumans($l->created_at),
+            'ip'        => $l->user_ip,
+            'ipUrl'     => route('admin.report.login.ip.history', [$l->user_ip]),
+            'city'      => __((string) $l->city),
+            'country'   => __((string) $l->country),
+            'browser'   => __((string) $l->browser),
+            'os'        => __((string) $l->os),
+        ];
     }
 
     public function notificationHistory(Request $request)
