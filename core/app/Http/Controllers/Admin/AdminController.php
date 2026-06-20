@@ -78,7 +78,36 @@ class AdminController extends Controller
             ->selectRaw('SUM(charge * currencies.rate) as charge')
             ->first('charge')->charge ?? 0;
 
-        return view('admin.dashboard', compact('pageTitle', 'widget', 'chart', 'deposit', 'withdrawals'));
+        // F6a: read-only Inertia admin dashboard (same computed data). Charts (time-series)
+        // are fetched client-side from the UNCHANGED admin.chart.* JSON endpoints. Rollback (one line):
+        //   return view('admin.dashboard', compact('pageTitle', 'widget', 'chart', 'deposit', 'withdrawals'));
+        return inertia('Admin/Dashboard', [
+            'widget'      => $widget,
+            'deposits'    => [
+                'pending'  => (int) $deposit['total_deposit_pending'],
+                'rejected' => (int) $deposit['total_deposit_rejected'],
+                'amount'   => getAmount($deposit['total_deposit_amount']),
+                'charge'   => getAmount($deposit['total_deposit_charge']),
+            ],
+            'withdrawals' => [
+                'pending'  => (int) $withdrawals['total_withdraw_pending'],
+                'rejected' => (int) $withdrawals['total_withdraw_rejected'],
+                'amount'   => getAmount($withdrawals['total_withdraw_amount']),
+                'charge'   => getAmount($withdrawals['total_withdraw_charge']),
+            ],
+            'loginCharts' => [
+                'browser' => $chart['user_browser_counter'],
+                'os'      => $chart['user_os_counter'],
+                'country' => $chart['user_country_counter'],
+            ],
+            'chartEndpoints' => [
+                'depositWithdraw'  => route('admin.chart.deposit.withdraw'),
+                'transaction'      => route('admin.chart.transaction'),
+                'chargeCommission' => route('admin.chart.charge.commission'),
+                'registration'     => route('admin.chart.registration'),
+            ],
+            'currencySymbol' => gs('cur_sym'),
+        ]);
     }
 
     public function depositAndWithdrawReport(Request $request)

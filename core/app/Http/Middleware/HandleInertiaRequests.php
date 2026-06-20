@@ -53,6 +53,23 @@ class HandleInertiaRequests extends Middleware
      */
     protected function userProps(): ?array
     {
+        // Admin guard (F6) — resolved here in the Inertia layer only; userGuard() (a shared
+        // backend helper) is intentionally left unchanged. Curated, secret-free fields only.
+        if (auth('admin')->check()) {
+            $admin = auth('admin')->user();
+
+            return [
+                'id'       => $admin->id,
+                'username' => $admin->username,
+                'fullname' => $admin->name,
+                'email'    => $admin->email,
+                'image'    => $this->adminImage($admin),
+                'kv'       => 0,
+                'ts'       => 0,
+                'type'     => 'ADMIN',
+            ];
+        }
+
         $guard = userGuard();
         $user  = $guard['user'] ?? null;
         if (!$user) {
@@ -88,6 +105,18 @@ class HandleInertiaRequests extends Middleware
         }
     }
 
+    protected function adminImage($admin): ?string
+    {
+        if (empty($admin->image)) {
+            return null;
+        }
+        try {
+            return getImage(getFilePath('adminProfile') . '/' . $admin->image);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     /**
      * @return array<string, bool>
      */
@@ -113,8 +142,15 @@ class HandleInertiaRequests extends Middleware
      */
     protected function panelNav(): array
     {
-        $type = userGuard()['type'] ?? null;
         $empty = ['primary' => [], 'actions' => [], 'account' => []];
+
+        // Admin guard (F6): server-resolved links to the migrated read-only admin pages only.
+        // Sensitive/settings/mutation routes are intentionally NOT exposed to the client.
+        if (auth('admin')->check()) {
+            return $this->adminNav();
+        }
+
+        $type = userGuard()['type'] ?? null;
         if (!$type) {
             return $empty;
         }
@@ -197,6 +233,39 @@ class HandleInertiaRequests extends Middleware
                 $item('user.twofactor', '2FA Security', 'shield'),
                 $item('user.qr.code', 'My QR Code', 'qr'),
                 $item('user.logout', 'Logout', 'logout'),
+            ]),
+        ];
+    }
+
+    /**
+     * Server-resolved nav for the admin read-only Inertia surface (F6). Only links to
+     * migrated read-only pages + profile/logout; no settings/mutation/sensitive routes.
+     *
+     * @return array<string, array<int, array<string, string>>>
+     */
+    protected function adminNav(): array
+    {
+        $item  = fn (string $name, string $label, string $icon, array $params = []) => Route::has($name)
+            ? ['label' => $label, 'url' => route($name, $params), 'icon' => $icon]
+            : null;
+        $clean = fn (array $items) => array_values(array_filter($items));
+
+        return [
+            'primary' => $clean([
+                $item('admin.dashboard', 'Dashboard', 'dashboard'),
+                $item('admin.users.all', 'Users', 'people'),
+                $item('admin.agents.all', 'Agents', 'agent'),
+                $item('admin.merchants.all', 'Merchants', 'store'),
+                $item('admin.deposit.list', 'Deposits', 'receipt'),
+                $item('admin.withdraw.data.all', 'Withdrawals', 'withdraw'),
+                $item('admin.report.transaction', 'Transactions', 'history'),
+                $item('admin.ticket.index', 'Support Tickets', 'ticket'),
+                $item('admin.report.login.history', 'Login History', 'report'),
+            ]),
+            'actions' => [],
+            'account' => $clean([
+                $item('admin.profile', 'Profile', 'profile'),
+                $item('admin.logout', 'Logout', 'logout'),
             ]),
         ];
     }
