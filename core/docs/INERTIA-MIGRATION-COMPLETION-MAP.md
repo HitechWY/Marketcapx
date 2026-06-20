@@ -58,10 +58,17 @@ api-secret/gateway-credential/raw-KYC-path/cross-actor data in any prop.
 > designed the prerequisites for phase 1 below: `RBAC-PERMISSION-AUDIT.md` (F8a, admin is flat),
 > `ADMIN-MUTATION-CONTRACT-AUDIT.md` (F8b), `ADMIN-AUDIT-LOG-READINESS.md` (F8c, metadata-only),
 > and `ADMIN-SAFE-MUTATION-ENDPOINT-DESIGN.md` (F8d, target contract + implementation order).
+>
+> **F9 (RBAC enforcement foundation) is complete — allow-by-default, no behavior change.** Schema
+> + models + `PermissionCatalog` + `rbac:install` seeder + `permission:<slug>` middleware applied to
+> high-risk admin routes, with `config('rbac.enforce')=false` (legacy admins keep full access). See
+> `RBAC-SCHEMA.md`, `RBAC-SEEDING.md`, and `RBAC-DENY-BY-DEFAULT-READINESS.md`. Still pending:
+> enabling deny-by-default (owner-gated), the DB audit-log foundation, then mutation-UI migration.
 
-1. **RBAC + admin mutation endpoints** — implement role/permission enforcement (draft only today),
-   extract admin inline mutations (approve/reject/status/balance) into dedicated audited endpoints,
-   THEN migrate admin detail/approval pages to Inertia. **See the F8d design + order.**
+1. **RBAC + admin mutation endpoints** — role/permission enforcement scaffolding **landed in F9**
+   (allow-by-default). Next: complete the deny-by-default readiness checklist (owner-gated), build the
+   audit-log foundation, extract admin inline mutations into dedicated audited endpoints, THEN migrate
+   admin detail/approval pages to Inertia. **See the F8d design + order and the F9 RBAC docs.**
 2. **Sanitized notification/email viewer** — safe read-only viewer before migrating notification
    history / email details.
 3. **In-SPA captcha strategy** — verify reCAPTCHA/custom-captcha rendering in Vue, then migrate
