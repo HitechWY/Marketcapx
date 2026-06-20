@@ -30,10 +30,9 @@ pick them up automatically.
   - Non-unique performance indexes on transactions(user_id), transactions(wallet_id),
     transactions(trx), deposits(trx), withdrawals(user_id).
 - `2026_01_01_000003_create_rbac_roles_permissions.php` (Phase 6 / RBAC)
-  - Creates `roles`, `permissions`, `permission_role` pivot, and adds a nullable
-    `admins.role_id` (null = legacy full access). Rollout step 1 of
-    `docs/RBAC-DESIGN.md`. Backward-compatible; the `permission` middleware and
-    deny-by-default flip (rollout steps 3-5) are NOT part of this draft.
+  - **PROMOTED in F9a** to `database/migrations/2026_01_01_000003_create_rbac_roles_permissions.php`
+    (with pivot FKs + an `admins.role_id` index added). No longer a draft. Still run only against
+    the disposable `marketcapx_test`; real-DB apply is owner-gated. See `docs/RBAC-SCHEMA.md`.
 
 ## Deliberately NOT included
 - A UNIQUE index on `transactions.trx`: transfers/payments create multiple rows
