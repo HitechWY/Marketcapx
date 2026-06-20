@@ -1,8 +1,14 @@
 # Admin Audit-Log Readiness (F8c)
 
-**Status:** read-only audit. Assesses whether sensitive admin mutations are auditable enough for
-fintech-grade operation. No behavior changed. Companions: `RBAC-PERMISSION-AUDIT.md` (F8a),
+**Status:** read-only audit (point-in-time at F8c). Assesses whether sensitive admin mutations were
+auditable enough for fintech-grade operation. Companions: `RBAC-PERMISSION-AUDIT.md` (F8a),
 `ADMIN-MUTATION-CONTRACT-AUDIT.md` (F8b), `HARDENING.md`, `RBAC-DESIGN.md`.
+
+> **Partially addressed by F10 (audit-log foundation).** The metadata-only gaps below are now backed
+> by a structured, queryable `admin_audit_logs` table written at the middleware level (RBAC decisions
+> + admin state-changing requests + route-inferred entity). Still deferred (design-only): semantic
+> per-action events and before/after value capture, which need controller hooks (F14+). See
+> `ADMIN-AUDIT-LOG-FOUNDATION.md`, `ADMIN-AUDIT-LOG-SCHEMA.md`, `ADMIN-AUDIT-LOG-ACTION-COVERAGE.md`.
 
 ## What exists today
 
