@@ -92,6 +92,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin'                 => RedirectIfNotAdmin::class,
             'admin.guest'           => RedirectIfAdmin::class,
 
+            // RBAC (F9d): permission gate, allow-by-default until owner enables
+            // rbac.enforce. Not applied to any route until F9e.
+            'permission'            => \App\Http\Middleware\PermissionMiddleware::class,
+
             'agent'                 => RedirectIfNotAgent::class,
             'agent.guest'           => RedirectIfAgent::class,
 
