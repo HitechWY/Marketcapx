@@ -71,31 +71,78 @@ class UserController extends Controller
                 'formUrl'         => route('user.kyc.form'),
                 'dataUrl'         => route('user.kyc.data'),
             ],
-            'histories'    => $histories->map(fn ($h) => [
-                'trxType'      => $h->trx_type,
-                'remark'       => __(ucwords(str_replace('_', ' ', (string) $h->remark))),
-                'date'         => showDateTime($h->created_at, 'M d Y @g:i:a'),
-                'details'      => __((string) $h->details),
-                'receiver'     => $h->receiver ? @$h->receiver->username : null,
-                'amount'       => showAmount($h->amount, $h->currency, currencyFormat: false),
-                'code'         => $h->currency->currency_code,
-                'trx'          => $h->trx,
-                'charge'       => (float) $h->charge,
-                'chargeType'   => $h->charge_type,
-                'chargeFmt'    => showAmount($h->charge, $h->currency, currencyFormat: false),
-                'beforeCharge' => showAmount($h->before_charge, $h->currency, currencyFormat: false),
-                'postBalance'  => showAmount($h->post_balance, $h->currency, currencyFormat: false),
-            ])->all(),
+            'histories'    => $histories->map(fn ($h) => $this->mapTransaction($h))->all(),
             'walletsUrl'   => route('user.wallets'),
             'insightUrl'   => route('user.check.insight'),
         ]);
+    }
+
+    /**
+     * Shape a Transaction for the Inertia UI (read-only display fields only).
+     * Mirrors the Blade transaction-row markup (remark/date/amount/charge/balances).
+     *
+     * @return array<string, mixed>
+     */
+    protected function mapTransaction($h): array
+    {
+        return [
+            'trxType'      => $h->trx_type,
+            'remark'       => __(ucwords(str_replace('_', ' ', (string) $h->remark))),
+            'date'         => showDateTime($h->created_at, 'M d Y @g:i:a'),
+            'details'      => __((string) $h->details),
+            'receiver'     => $h->receiver ? @$h->receiver->username : null,
+            'amount'       => showAmount($h->amount, $h->currency, currencyFormat: false),
+            'code'         => $h->currency->currency_code,
+            'trx'          => $h->trx,
+            'charge'       => (float) $h->charge,
+            'chargeType'   => $h->charge_type,
+            'chargeFmt'    => showAmount($h->charge, $h->currency, currencyFormat: false),
+            'beforeCharge' => showAmount($h->before_charge, $h->currency, currencyFormat: false),
+            'postBalance'  => showAmount($h->post_balance, $h->currency, currencyFormat: false),
+        ];
     }
 
     public function depositHistory(Request $request)
     {
         $pageTitle = 'Deposit History';
         $deposits  = auth()->user()->deposits()->searchable(['trx'])->with(['gateway'])->orderBy('id', 'desc')->paginate(getPaginate());
-        return view('Template::user.deposit_history', compact('pageTitle', 'deposits'));
+
+        // F2b: read-only Inertia. Rollback (one line):
+        //   return view('Template::user.deposit_history', compact('pageTitle', 'deposits'));
+        $deposits->through(function ($d) {
+            $isManual = $d->method_code >= 1000 && $d->method_code <= 5000;
+            $detail   = [];
+            if ($isManual) {
+                foreach (@$d->detail ?? [] as $info) {
+                    $value = $info->value ?? null;
+                    if (($info->type ?? null) == 'file' && $value) {
+                        $value = route('user.download.attachment', encrypt(getFilePath('verify') . '/' . $value));
+                    }
+                    $detail[] = ['name' => $info->name ?? '', 'type' => $info->type ?? 'text', 'value' => $value];
+                }
+            }
+            return [
+                'trx'           => $d->trx,
+                'gateway'       => __(@$d->gateway?->name),
+                'date'          => showDateTime($d->created_at),
+                'dateHuman'     => diffForHumans($d->created_at),
+                'amount'        => showAmount($d->amount, currencyFormat: false),
+                'charge'        => showAmount($d->charge, currencyFormat: false),
+                'total'         => showAmount($d->amount + $d->charge, currencyFormat: false),
+                'symbol'        => $d->currency->currency_symbol,
+                'code'          => $d->currency->currency_code,
+                'statusBadge'   => $d->statusBadge, // admin-trusted HTML
+                'status'        => (int) $d->status,
+                'isManual'      => $isManual,
+                'detail'        => $detail,
+                'adminFeedback' => $d->status == Status::PAYMENT_REJECT ? $d->admin_feedback : null,
+            ];
+        });
+
+        return inertia('User/DepositHistory', [
+            'deposits' => $deposits,
+            'search'   => (string) $request->search,
+        ]);
     }
 
     public function show2faForm()
@@ -149,9 +196,25 @@ class UserController extends Controller
 
     public function transactions(Request $request)
     {
-        $pageTitle = $request->search ? "Search Result of #$request->search" : "Transaction History";
+        $pageTitle    = $request->search ? "Search Result of #$request->search" : "Transaction History";
         $transactions = auth()->user()->trxLog($request);
-        return view('Template::user.transactions', compact('pageTitle', 'transactions'));
+
+        // F2b: read-only Inertia. Rollback (one line):
+        //   return view('Template::user.transactions', compact('pageTitle', 'transactions'));
+        $transactions->through(fn ($h) => $this->mapTransaction($h));
+
+        return inertia('User/Transactions', [
+            'transactions' => $transactions,
+            'filters'      => [
+                'search'    => (string) $request->search,
+                'type'      => (string) $request->type,
+                'operation' => (string) $request->operation,
+                'time'      => (string) $request->time,
+                'currency'  => (string) $request->currency,
+            ],
+            'currencies'   => auth()->user()->wallets()->with('currency')->get()
+                ->map(fn ($w) => $w->currency->currency_code)->unique()->values()->all(),
+        ]);
     }
 
     public function kycForm()
@@ -287,7 +350,19 @@ class UserController extends Controller
         $wallets   = Wallet::hasCurrency()->where('user_id', auth()->user()->id)->where('user_type', 'USER')
             ->with('currency')->orderBy('balance', 'DESC')
             ->get();
-        return view('Template::user.wallets', compact('pageTitle', 'wallets'));
+
+        // F2b: read-only Inertia. Rollback (one line):
+        //   return view('Template::user.wallets', compact('pageTitle', 'wallets'));
+        $transferOn = (bool) optional(module('transfer_money'))->status;
+
+        return inertia('User/Wallets', [
+            'wallets' => $wallets->map(fn ($w) => [
+                'balance'     => showAmount($w->balance, $w->currency, currencyFormat: false),
+                'symbol'      => $w->currency->currency_symbol,
+                'code'        => $w->currency->currency_code,
+                'transferUrl' => $transferOn ? route('user.transfer', ['wallet' => $w->currency->currency_code]) : null,
+            ])->all(),
+        ]);
     }
 
     public function logoutOtherDevicesForm()

@@ -16,7 +16,7 @@ defineProps<{ wallet: DashboardWallet; showTransfer?: boolean }>();
         </p>
         <a
             v-if="showTransfer"
-            :href="wallet.transferUrl"
+            :href="wallet.transferUrl || '#'"
             class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-md-primary hover:underline"
         >
             Transfer <Icon name="transfer" size="1rem" />
