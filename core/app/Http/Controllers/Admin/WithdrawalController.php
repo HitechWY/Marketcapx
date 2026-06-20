@@ -4,33 +4,37 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
+use App\Models\Currency;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Models\Withdrawal;
+use App\Traits\BuildsAdminReadonly;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawalController extends Controller
 {
+    use BuildsAdminReadonly;
+
     public function pending($userId = null)
     {
         $pageTitle   = 'Pending Withdrawals';
         $withdrawals = $this->withdrawalData('pending', userId: $userId);
-        return view('admin.withdraw.withdrawals', compact('pageTitle', 'withdrawals'));
+        return $this->withdrawInertia($pageTitle, $withdrawals);
     }
 
     public function approved($userId = null)
     {
         $pageTitle   = 'Approved Withdrawals';
         $withdrawals = $this->withdrawalData('approved', userId: $userId);
-        return view('admin.withdraw.withdrawals', compact('pageTitle', 'withdrawals'));
+        return $this->withdrawInertia($pageTitle, $withdrawals);
     }
 
     public function rejected($userId = null)
     {
         $pageTitle   = 'Rejected Withdrawals';
         $withdrawals = $this->withdrawalData('rejected', userId: $userId);
-        return view('admin.withdraw.withdrawals', compact('pageTitle', 'withdrawals'));
+        return $this->withdrawInertia($pageTitle, $withdrawals);
     }
 
     public function all($userId = null)
@@ -43,7 +47,11 @@ class WithdrawalController extends Controller
         $pending        = $summary['pending'];
         $rejected       = $summary['rejected'];
 
-        return view('admin.withdraw.withdrawals', compact('pageTitle', 'withdrawals', 'successful', 'pending', 'rejected'));
+        return $this->withdrawInertia($pageTitle, $withdrawals, [
+            'successful' => getAmount($successful),
+            'pending'    => getAmount($pending),
+            'rejected'   => getAmount($rejected),
+        ]);
     }
 
     protected function withdrawalData($scope = null, $summary = false, $userId = null)
@@ -131,6 +139,57 @@ class WithdrawalController extends Controller
         ];
 
         return @$array[$userType] ?? @$array['all'];
+    }
+
+    /**
+     * F6b: read-only Inertia withdrawal list. Approve/reject stay on the (Blade) detail page.
+     * Rollback (one line): return view('admin.withdraw.withdrawals', compact('pageTitle', 'withdrawals'[, summary...]));
+     *
+     * @param  array<string, string>|null  $summary
+     */
+    protected function withdrawInertia(string $pageTitle, $withdrawals, ?array $summary = null)
+    {
+        $withdrawals->appends(request()->all());
+        $withdrawals->through(fn ($w) => $this->mapWithdrawRow($w));
+
+        return inertia('Admin/Withdrawals', [
+            'pageTitle'      => $pageTitle,
+            'withdrawals'    => $withdrawals,
+            'summary'        => $summary,
+            'filters'        => [
+                'search'    => (string) request('search'),
+                'user_type' => strtolower((string) request('user_type')),
+                'currency'  => (string) request('currency'),
+                'date'      => (string) request('date'),
+            ],
+            'currencies'     => $this->currencyOptions(),
+            'currencySymbol' => gs('cur_sym'),
+        ]);
+    }
+
+    /**
+     * Explicit, secret-free withdrawal row (no withdraw_information payload).
+     *
+     * @return array<string, mixed>
+     */
+    protected function mapWithdrawRow($w): array
+    {
+        return [
+            'id'             => $w->id,
+            'trx'            => $w->trx,
+            'method'         => __(@$w->method->name),
+            'initiated'      => showDateTime($w->created_at),
+            'initiatedHuman' => diffForHumans($w->created_at),
+            'userType'       => __($w->user_type),
+            'fullname'       => @$w->getUser->fullname,
+            'username'       => @$w->getUser->username,
+            'amount'         => showAmount($w->amount, currencyFormat: false),
+            'charge'         => showAmount($w->charge, currencyFormat: false),
+            'afterCharge'    => showAmount($w->amount - $w->charge, currencyFormat: false),
+            'currency'       => __(@$w->curr->currency_code),
+            'status'         => $this->paymentChip($w->status),
+            'detailUrl'      => route('admin.withdraw.data.details', $w->id),
+        ];
     }
 
     public function details($id)

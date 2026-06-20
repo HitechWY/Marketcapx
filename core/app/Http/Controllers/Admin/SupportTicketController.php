@@ -6,11 +6,13 @@ use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
+use App\Traits\BuildsAdminReadonly;
 use App\Traits\SupportTicketManager;
 
 class SupportTicketController extends Controller
 {
     use SupportTicketManager;
+    use BuildsAdminReadonly;
 
     public function __construct()
     {
@@ -24,28 +26,62 @@ class SupportTicketController extends Controller
     {
         $pageTitle = 'Support Tickets';
         $items = SupportTicket::searchable(['name','subject','ticket'])->orderBy('id','desc')->with('user')->paginate(getPaginate());
-        return view('admin.support.tickets', compact('items', 'pageTitle'));
+        return $this->ticketInertia($pageTitle, $items);
     }
 
     public function pendingTicket()
     {
         $pageTitle = 'Pending Tickets';
         $items = SupportTicket::searchable(['name','subject','ticket'])->pending()->orderBy('id','desc')->with('user')->paginate(getPaginate());
-        return view('admin.support.tickets', compact('items', 'pageTitle'));
+        return $this->ticketInertia($pageTitle, $items);
     }
 
     public function closedTicket()
     {
         $pageTitle = 'Closed Tickets';
         $items = SupportTicket::searchable(['name','subject','ticket'])->closed()->orderBy('id','desc')->with('user')->paginate(getPaginate());
-        return view('admin.support.tickets', compact('items', 'pageTitle'));
+        return $this->ticketInertia($pageTitle, $items);
     }
 
     public function answeredTicket()
     {
         $pageTitle = 'Answered Tickets';
         $items = SupportTicket::searchable(['name','subject','ticket'])->orderBy('id','desc')->with('user')->answered()->paginate(getPaginate());
-        return view('admin.support.tickets', compact('items', 'pageTitle'));
+        return $this->ticketInertia($pageTitle, $items);
+    }
+
+    /**
+     * F6b: read-only Inertia ticket list. Reply/close/delete stay on the (Blade) reply page.
+     * Rollback (one line): return view('admin.support.tickets', compact('items', 'pageTitle'));
+     */
+    protected function ticketInertia(string $pageTitle, $items)
+    {
+        $items->appends(request()->all());
+        $items->through(fn ($t) => $this->mapTicketRow($t));
+
+        return inertia('Admin/SupportTickets', [
+            'pageTitle' => $pageTitle,
+            'tickets'   => $items,
+            'filters'   => ['search' => (string) request('search')],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function mapTicketRow($t): array
+    {
+        return [
+            'id'             => $t->id,
+            'ticket'         => $t->ticket,
+            'subject'        => strLimit((string) $t->subject, 60),
+            'name'           => $t->user_id ? @$t->getUser->fullname : $t->name,
+            'userType'       => __($t->user_type),
+            'status'         => $this->ticketStatusChip($t->status),
+            'priority'       => $this->ticketPriorityChip($t->priority),
+            'lastReplyHuman' => diffForHumans($t->last_reply),
+            'viewUrl'        => route('admin.ticket.view', $t->id),
+        ];
     }
 
     public function ticketReply($id)

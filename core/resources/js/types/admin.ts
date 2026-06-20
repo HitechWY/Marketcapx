@@ -32,15 +32,68 @@ export interface AdminChartResponse {
     data: AdminChartSeries[];
 }
 
-// Generic admin list row (explicitly mapped, secret-free) — used by F6b list pages.
+// Explicitly-mapped, secret-free list rows used by the F6b admin list pages.
+export interface StatusChip {
+    label: string;
+    tone: string;
+}
+
 export interface AdminGuardRow {
     id: number;
-    username: string;
     fullname: string;
+    username: string;
     email: string;
     mobile: string | null;
-    balance: string;
-    statusBadge: string;
+    countryCode: string | null;
+    countryName: string | null;
+    joined: string;
     joinedHuman: string;
-    detailUrl: string | null;
+    detailUrl: string;
+    kycDataUrl: string | null;
+}
+
+export interface AdminDepositRow {
+    id: number;
+    trx: string;
+    gateway: string;
+    initiated: string;
+    initiatedHuman: string;
+    userType: string;
+    fullname: string;
+    username: string | null;
+    amount: string;
+    charge: string;
+    total: string;
+    currency: string;
+    status: StatusChip;
+    detailUrl: string;
+}
+
+export interface AdminWithdrawRow {
+    id: number;
+    trx: string;
+    method: string;
+    initiated: string;
+    initiatedHuman: string;
+    userType: string;
+    fullname: string;
+    username: string | null;
+    amount: string;
+    charge: string;
+    afterCharge: string;
+    currency: string;
+    status: StatusChip;
+    detailUrl: string;
+}
+
+export interface AdminTicketRow {
+    id: number;
+    ticket: string;
+    subject: string;
+    name: string;
+    userType: string;
+    status: StatusChip;
+    priority: StatusChip;
+    lastReplyHuman: string;
+    viewUrl: string;
 }

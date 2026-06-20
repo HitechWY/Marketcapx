@@ -15,6 +15,7 @@ use App\Http\Controllers\Controller;
 use App\Models\NotificationTemplate;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 
 class ManageGuardController extends Controller
 {
@@ -38,70 +39,70 @@ class ManageGuardController extends Controller
     {
         $pageTitle = 'All ' . ucfirst($this->guardType);
         $users     = $this->getData();
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function activeUsers()
     {
         $pageTitle = 'Active ' . ucfirst($this->guardType);
         $users     = $this->getData('active');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function bannedUsers()
     {
         $pageTitle = 'Banned ' . ucfirst($this->guardType);
         $users     = $this->getData('banned');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function emailUnverifiedUsers()
     {
         $pageTitle = 'Email Unverified ' . ucfirst($this->guardType);
         $users     = $this->getData('emailUnverified');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function kycUnverifiedUsers()
     {
         $pageTitle = 'KYC Unverified ' . ucfirst($this->guardType);
         $users     = $this->getData('kycUnverified');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function kycPendingUsers()
     {
         $pageTitle = 'KYC Pending ' . ucfirst($this->guardType);
         $users     = $this->getData('kycPending');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function emailVerifiedUsers()
     {
         $pageTitle = 'Email Verified ' . ucfirst($this->guardType);
         $users     = $this->getData('emailVerified');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function mobileUnverifiedUsers()
     {
         $pageTitle = 'Mobile Unverified ' . ucfirst($this->guardType);
         $users     = $this->getData('mobileUnverified');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function mobileVerifiedUsers()
     {
         $pageTitle = 'Mobile Verified ' . ucfirst($this->guardType);
         $users     = $this->getData('mobileVerified');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     public function usersWithBalance()
     {
         $pageTitle = ucfirst($this->guardType) . ' with Balance';
         $users     = $this->getData('withBalance');
-        return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+        return $this->guardListView($pageTitle, $users);
     }
 
     protected function getData($scope = null)
@@ -114,6 +115,47 @@ class ManageGuardController extends Controller
         }
 
         return $users->searchable(['username', 'email'])->orderBy('id', 'desc')->paginate(getPaginate());
+    }
+
+    /**
+     * F6b: read-only Inertia list (users/agents/merchants). Mutations (detail/update/ban/
+     * balance/KYC-approve) stay Blade. Rollback (one line):
+     *   return view("admin.$this->guardType.list", compact('pageTitle', 'users'));
+     */
+    protected function guardListView(string $pageTitle, $users)
+    {
+        $users->appends(request()->all());
+        $users->through(fn ($u) => $this->mapGuardRow($u));
+
+        return inertia('Admin/GuardList', [
+            'guardType' => $this->guardType,
+            'pageTitle' => $pageTitle,
+            'users'     => $users,
+            'filters'   => ['search' => (string) request('search')],
+            'showKyc'   => request()->routeIs('admin.*.kyc.pending'),
+        ]);
+    }
+
+    /**
+     * Explicit, secret-free row (no password/remember_token/balance/kyc_data).
+     *
+     * @return array<string, mixed>
+     */
+    protected function mapGuardRow($u): array
+    {
+        return [
+            'id'          => $u->id,
+            'fullname'    => $u->fullname,
+            'username'    => $u->username,
+            'email'       => $u->email,
+            'mobile'      => @$u->mobileNumber,
+            'countryCode' => $u->country_code,
+            'countryName' => @$u->country_name,
+            'joined'      => showDateTime($u->created_at),
+            'joinedHuman' => diffForHumans($u->created_at),
+            'detailUrl'   => route("admin.$this->guardType.detail", $u->id),
+            'kycDataUrl'  => Route::has("admin.$this->guardType.kyc.details") ? route("admin.$this->guardType.kyc.details", $u->id) : null,
+        ];
     }
 
     public function detail($id)

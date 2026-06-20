@@ -5,45 +5,49 @@ namespace App\Http\Controllers\Admin;
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Gateway\PaymentController;
+use App\Models\Currency;
 use App\Models\Deposit;
 use App\Models\Gateway;
+use App\Traits\BuildsAdminReadonly;
 use Illuminate\Http\Request;
 
 class DepositController extends Controller
 {
+    use BuildsAdminReadonly;
+
     public function pending($userId = null)
     {
         $pageTitle = 'Pending Deposits';
         $deposits  = $this->depositData('pending', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        return $this->depositInertia($pageTitle, $deposits);
     }
 
     public function approved($userId = null)
     {
         $pageTitle = 'Approved Deposits';
         $deposits  = $this->depositData('approved', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        return $this->depositInertia($pageTitle, $deposits);
     }
 
     public function successful($userId = null)
     {
         $pageTitle = 'Successful Deposits';
         $deposits  = $this->depositData('successful', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        return $this->depositInertia($pageTitle, $deposits);
     }
 
     public function rejected($userId = null)
     {
         $pageTitle = 'Rejected Deposits';
         $deposits  = $this->depositData('rejected', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        return $this->depositInertia($pageTitle, $deposits);
     }
 
     public function initiated($userId = null)
     {
         $pageTitle = 'Initiated Deposits';
         $deposits  = $this->depositData('initiated', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        return $this->depositInertia($pageTitle, $deposits);
     }
 
     public function deposit($userId = null)
@@ -56,7 +60,12 @@ class DepositController extends Controller
         $pending     = $summary['pending'];
         $rejected    = $summary['rejected'];
         $initiated   = $summary['initiated'];
-        return view('admin.deposit.log', compact('pageTitle', 'deposits', 'successful', 'pending', 'rejected', 'initiated'));
+        return $this->depositInertia($pageTitle, $deposits, [
+            'successful' => getAmount($successful),
+            'pending'    => getAmount($pending),
+            'rejected'   => getAmount($rejected),
+            'initiated'  => getAmount($initiated),
+        ]);
     }
 
     protected function depositData($scope = null, $summary = false, $userId = null)
@@ -155,6 +164,59 @@ class DepositController extends Controller
         ];
 
         return @$array[$userType] ?? @$array['all'];
+    }
+
+    /**
+     * F6b: read-only Inertia deposit list. Approve/reject stay on the (Blade) detail page.
+     * Rollback (one line): return view('admin.deposit.log', compact('pageTitle', 'deposits'[, summary...]));
+     *
+     * @param  array<string, string>|null  $summary
+     */
+    protected function depositInertia(string $pageTitle, $deposits, ?array $summary = null)
+    {
+        $deposits->appends(request()->all());
+        $deposits->through(fn ($d) => $this->mapDepositRow($d));
+
+        return inertia('Admin/Deposits', [
+            'pageTitle'      => $pageTitle,
+            'deposits'       => $deposits,
+            'summary'        => $summary,
+            'filters'        => [
+                'search'    => (string) request('search'),
+                'user_type' => strtolower((string) request('user_type')),
+                'currency'  => (string) request('currency'),
+                'date'      => (string) request('date'),
+            ],
+            'currencies'     => $this->currencyOptions(),
+            'currencySymbol' => gs('cur_sym'),
+        ]);
+    }
+
+    /**
+     * Explicit, secret-free deposit row (no gateway `detail` payload).
+     *
+     * @return array<string, mixed>
+     */
+    protected function mapDepositRow($d): array
+    {
+        $gateway = $d->method_code < 5000 ? __(@$d->gateway->name) : 'Google Pay';
+
+        return [
+            'id'             => $d->id,
+            'trx'            => $d->trx,
+            'gateway'        => $gateway,
+            'initiated'      => showDateTime($d->created_at),
+            'initiatedHuman' => diffForHumans($d->created_at),
+            'userType'       => __($d->user_type),
+            'fullname'       => @$d->getUser->fullname,
+            'username'       => @$d->getUser->username,
+            'amount'         => showAmount($d->amount, currencyFormat: false),
+            'charge'         => showAmount($d->charge, currencyFormat: false),
+            'total'          => showAmount($d->amount + $d->charge, currencyFormat: false),
+            'currency'       => __($d->method_currency),
+            'status'         => $this->paymentChip($d->status),
+            'detailUrl'      => route('admin.deposit.details', $d->id),
+        ];
     }
 
     public function details($id)
