@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { defineAsyncComponent, onMounted, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminMetricCard from '@/Components/Admin/AdminMetricCard.vue';
-import AdminChart from '@/Components/Admin/AdminChart.vue';
+
+// F7c: lazy-load the chart layer so chart.js/vue-chartjs land in an admin-only async chunk
+// (fetched only when the admin dashboard mounts), keeping them out of the main app bundle.
+const AdminChart = defineAsyncComponent(() => import('@/Components/Admin/AdminChart.vue'));
 import type { AdminWidget, AdminMoneySummary, AdminLoginCharts, AdminChartEndpoints, AdminChartResponse } from '@/types/admin';
 
 const props = defineProps<{
