@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\AdminAuditLogger;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -13,13 +14,13 @@ use Symfony\Component\HttpFoundation\Response;
  * Runs AFTER the `admin` auth guard, so the admin is authenticated here. Decision:
  *  - admin has the permission (incl. super-admin, and legacy null role_id) => allow.
  *  - otherwise:
- *      - allow-by-default (config rbac.enforce = false, the F9 default): LOG a
+ *      - allow-by-default (config rbac.enforce = false, the F9 default): record a
  *        "would_deny" and ALLOW — zero behavior change vs the flat panel.
- *      - deny-by-default (rbac.enforce = true, OWNER-GATED): LOG "denied" + abort(403).
+ *      - deny-by-default (rbac.enforce = true, OWNER-GATED): record "denied" + abort(403).
  *
- * Logging is metadata-only (who/what/when/route — never request body/secrets) and is
- * routed through the same admin-audit channel as AdminAuditLog. logDecision() is the
- * single sink so it can later be swapped for the DB audit-log foundation.
+ * F10c: every decision (allowed | would_deny | denied) is recorded to the structured
+ * DB audit log (AdminAuditLogger) AND the file channel (dual-write). The decision logic
+ * is unchanged — only logging was added.
  */
 class PermissionMiddleware
 {
@@ -28,29 +29,38 @@ class PermissionMiddleware
         $admin = auth()->guard('admin')->user();
 
         if ($admin && $admin->hasPermission($slug)) {
+            $this->logDecision($request, $admin, $slug, 'allowed', null);
             return $next($request);
         }
 
-        $enforce = (bool) config('rbac.enforce', false);
-        $this->logDecision($request, $admin, $slug, $enforce);
-
-        if ($enforce) {
+        if ((bool) config('rbac.enforce', false)) {
+            $this->logDecision($request, $admin, $slug, 'denied', 403);
             abort(403, 'You do not have permission to perform this action.');
         }
 
-        // allow-by-default: never block; the log records a would-deny for review.
+        // allow-by-default: never block; the record marks a would-deny for review.
+        $this->logDecision($request, $admin, $slug, 'would_deny', null);
         return $next($request);
     }
 
-    private function logDecision(Request $request, $admin, string $slug, bool $enforce): void
+    private function logDecision(Request $request, $admin, string $slug, string $result, ?int $httpStatus): void
     {
+        // Structured DB audit (F10c). The logger is fail-open (never throws); the
+        // extra guard here is belt-and-suspenders.
+        try {
+            app(AdminAuditLogger::class)->logPermissionDecision($admin, $slug, $result, $request, $httpStatus);
+        } catch (\Throwable $e) {
+            // Auditing must never break an admin action.
+        }
+
+        // File-channel dual-write (retains the F9 trail / fallback).
         try {
             Log::build([
                 'driver' => 'daily',
                 'path'   => storage_path('logs/admin-audit.log'),
                 'days'   => 30,
             ])->info('admin.permission', [
-                'decision'   => $enforce ? 'denied' : 'would_deny',
+                'decision'   => $result,
                 'permission' => $slug,
                 'admin_id'   => $admin?->id,
                 'username'   => $admin?->username ?? null,
