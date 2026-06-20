@@ -77,3 +77,19 @@ Never place secrets into props: SMTP/mail password, SMS/push API keys, gateway s
 social client secrets, merchant `secret_api_key`, KYC documents. Curate server-side; expose only
 display-safe fields. KYC approval, balance adjustment, deposit/withdraw approval, and all settings
 writes remain Blade until a dedicated, audited admin phase.
+
+---
+
+## F6 status update (shipped)
+
+The `admin`-guard secret-free shared-props layer now exists (`HandleInertiaRequests` admin branch
++ `adminNav()`; `userGuard()` unchanged). Migrated to Inertia (read-only):
+- **F6a** Dashboard (`admin.dashboard`) — metric/summary cards + login doughnuts + 4 time-series
+  charts (chart.js/vue-chartjs) fed by the unchanged `admin.chart.*` JSON endpoints.
+- **F6b** Lists — Users/Agents/Merchants (`Admin/GuardList`), Deposits, Withdrawals, Support tickets.
+- **F6c** Reports — Transaction report, Login history (+ by-IP).
+
+Still Blade (per freeze list / deferred): all detail/KYC/ticket-reply pages, all approve/reject/
+status/balance/settings/gateway/notification/cron/system/role mutations, admin login,
+`notificationHistory` + `emailDetails` (sensitive payloads/raw HTML). Route count unchanged (798);
+controllers re-pointed in place with one-line Blade rollback comments.
