@@ -11,8 +11,12 @@ class ForgotPasswordController extends Controller
 {
     public function showLinkRequestForm()
     {
-        $pageTitle = "Account Recovery";
-        return view('Template::user.auth.passwords.email', compact('pageTitle'));
+        // F4b: Inertia native-POST page (backend unchanged). Rollback (one line):
+        //   $pageTitle = "Account Recovery"; return view('Template::user.auth.passwords.email', compact('pageTitle'));
+        return inertia('Auth/ForgotPassword', [
+            'submitUrl' => route('user.password.email'),
+            'loginUrl'  => route('user.login'),
+        ]);
     }
 
     public function sendResetCodeEmail(Request $request)
@@ -74,7 +78,14 @@ class ForgotPasswordController extends Controller
             $notify[] = ['error', 'Oops! session expired'];
             return to_route('user.password.request')->withNotify($notify);
         }
-        return view('Template::user.auth.passwords.code_verify', compact('pageTitle', 'email'));
+
+        // F4b: Inertia native-POST page (backend unchanged). Rollback (one line):
+        //   return view('Template::user.auth.passwords.code_verify', compact('pageTitle', 'email'));
+        return inertia('Auth/CodeVerify', [
+            'submitUrl'  => route('user.password.verify.code'),
+            'email'      => $email,
+            'requestUrl' => route('user.password.request'),
+        ]);
     }
 
     public function verifyCode(Request $request)
