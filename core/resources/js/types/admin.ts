@@ -97,3 +97,34 @@ export interface AdminTicketRow {
     lastReplyHuman: string;
     viewUrl: string;
 }
+
+export interface AdminTransactionRow {
+    id: number;
+    fullname: string | null;
+    username: string | null;
+    userType: string;
+    trx: string;
+    date: string;
+    dateHuman: string;
+    amount: string;
+    trxType: string;
+    code: string | null;
+    postBalance: string;
+    details: string;
+    receiver: string | null;
+}
+
+export interface AdminLoginRow {
+    id: number;
+    fullname: string | null;
+    username: string | null;
+    userType: string;
+    date: string;
+    dateHuman: string;
+    ip: string;
+    ipUrl: string;
+    city: string;
+    country: string;
+    browser: string;
+    os: string;
+}
