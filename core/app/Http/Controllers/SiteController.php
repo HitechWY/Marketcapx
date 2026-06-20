@@ -294,7 +294,27 @@ class SiteController extends Controller
         $sections    = Page::where('tempname', activeTemplate())->where('slug', 'contact')->first();
         $seoContents = $sections->seo_content;
         $seoImage    = @$seoContents->image ? getImage(getFilePath('seo') . '/' . @$seoContents->image, getFileSize('seo')) : null;
-        return view('Template::contact', compact('pageTitle', 'user', 'sections', 'seoContents', 'seoImage'));
+        $content     = @getContent('contact_us.content', true)?->data_values;
+        $authUser    = @userGuard()['user'];
+
+        // F1c-3: render via Inertia. The POST /contact (contactSubmit) flow is UNCHANGED —
+        // the Vue form does a native HTML POST to it. Rollback (one line):
+        //   return view('Template::contact', compact('pageTitle', 'user', 'sections', 'seoContents', 'seoImage'));
+        return inertia('Public/Contact', [
+            'seo'      => $this->seoProps($pageTitle, $seoContents, $seoImage),
+            'content'  => [
+                'title'          => $content ? __(@$content->title) : null,
+                'heading'        => $content ? __(@$content->heading) : null,
+                'address'        => @$content->address,
+                'email_address'  => @$content->email_address,
+                'contact_number' => @$content->contact_number,
+            ],
+            'authUser' => $authUser ? ['name' => $authUser->fullname, 'email' => $authUser->email] : null,
+            // Server-rendered captcha markup (same as the Blade <x-captcha/>); empty when
+            // no captcha is enabled. Injected verbatim in the form (admin-trusted HTML).
+            'captcha'  => trim(view('partials.captcha')->render()),
+            'sections' => $this->sectionList($sections),
+        ]);
     }
 
     public function contactSubmit(Request $request)
