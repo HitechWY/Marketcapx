@@ -247,7 +247,26 @@ class UserController extends Controller
         $user      = auth()->user();
         $pageTitle = 'KYC Data';
         abort_if($user->kv == Status::VERIFIED, 403);
-        return view('Template::user.kyc.info', compact('pageTitle', 'user'));
+
+        // F2d: read-only Inertia (submitted KYC fields the user already sees). The KYC
+        // upload form (kycForm/kycSubmit) stays Blade — see plan-f2d. File values use the
+        // existing encrypted download route (never a raw storage path). Rollback (one line):
+        //   return view('Template::user.kyc.info', compact('pageTitle', 'user'));
+        $fields = collect($user->kyc_data ?? [])
+            ->filter(fn ($v) => !empty($v->value))
+            ->map(function ($v) {
+                $value = $v->value;
+                if ($v->type == 'checkbox') {
+                    $value = is_array($value) ? implode(', ', $value) : $value;
+                } elseif ($v->type == 'file') {
+                    $value = route('user.download.attachment', encrypt(getFilePath('verify') . '/' . $v->value));
+                } else {
+                    $value = __((string) $value);
+                }
+                return ['name' => __($v->name), 'type' => $v->type, 'value' => $value];
+            })->values()->all();
+
+        return inertia('User/KycInfo', ['fields' => $fields]);
     }
 
     public function kycSubmit(Request $request)
