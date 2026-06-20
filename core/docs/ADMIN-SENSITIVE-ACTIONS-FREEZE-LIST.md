@@ -4,6 +4,11 @@
 do NOT modify in any frontend phase. Money, KYC approvals, secrets, config, code/CMS writes, and
 dangerous system operations. Companion: `ADMIN-READONLY-INERTIA-MIGRATION-PLAN.md`.
 
+> **F8 update:** these actions remain frozen. Before any of them migrates, they must meet the
+> `ADMIN-SAFE-MUTATION-ENDPOINT-DESIGN.md` (F8d) contract, which depends on the RBAC and audit-log
+> foundations identified in `RBAC-PERMISSION-AUDIT.md` (F8a), `ADMIN-MUTATION-CONTRACT-AUDIT.md`
+> (F8b), and `ADMIN-AUDIT-LOG-READINESS.md` (F8c). F8 changed no behavior; nothing here is unfrozen.
+
 ## 🔴 Money movement / balance mutation
 - `admin.users|agents|merchants.add.sub.balance` — direct balance adjustment.
 - `admin.deposit.approve` / `admin.deposit.reject` — credits/rejects deposits.
