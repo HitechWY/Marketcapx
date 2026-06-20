@@ -15,8 +15,8 @@ this closes), `ADMIN-SAFE-MUTATION-ENDPOINT-DESIGN.md` (F8d), `RBAC-SCHEMA.md` (
 | action | string, **indexed** | event taxonomy (see action coverage doc) |
 | permission_slug | string nullable, **indexed** | set for RBAC decision rows |
 | route_name | string nullable, **indexed** | |
-| method | string(10) | HTTP verb |
-| path | string | request path (no query string) |
+| method | string(10) | HTTP verb (or `CLI` for non-HTTP events) |
+| path | string nullable | request path (no query string); null for non-HTTP (CLI/system) events |
 | entity_type | string nullable | inferred from route (F10d/e) |
 | entity_id | unsignedBigInteger nullable | inferred from `{id}` route param |
 | result | string, **indexed** | `allowed` / `would_deny` / `denied` / `succeeded` / `failed` |
