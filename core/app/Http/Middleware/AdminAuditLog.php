@@ -2,20 +2,23 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\AdminAuditLogger;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Lightweight, schema-free audit trail for privileged admin actions (Phase 6).
+ * Audit trail for state-changing admin requests.
  *
- * Logs metadata ONLY (who/what/when/where + response status) for state-changing
- * admin requests to a dedicated daily log file (storage/logs/admin-audit.log).
- * It never logs the request body, so passwords / gateway secrets / tokens are not
- * captured. Logging failures never affect the request.
+ * Logs metadata ONLY (who/what/when/where + response status) for POST/PUT/PATCH/
+ * DELETE admin requests. It never logs the request body, so passwords / gateway
+ * secrets / tokens are never captured. Logging failures never affect the request.
  *
- * This is a non-repudiation stop-gap until a proper DB-backed audit log + RBAC
- * are implemented (see phase6-admin-rbac-audit.md). It changes no business logic.
+ * F10d: dual-writes a structured row to the DB audit log (AdminAuditLogger) in
+ * addition to the file channel (kept as fallback). Entity_type/entity_id are inferred
+ * from route name + {id} param inside the logger (non-invasive — no controller change).
+ * Privileged GET actions (impersonation, KYC view) are audited separately via the
+ * `permission` middleware's rbac.permission.* rows (F10c). Business logic unchanged.
  */
 class AdminAuditLog
 {
@@ -24,10 +27,18 @@ class AdminAuditLog
         $response = $next($request);
 
         if (in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
-            try {
-                $admin = auth()->guard('admin')->user();
+            $admin = auth()->guard('admin')->user();
 
-                if ($admin) {
+            if ($admin) {
+                // Structured DB audit (F10d) — fail-open logger.
+                try {
+                    app(AdminAuditLogger::class)->logAdminRequest($request, $response);
+                } catch (\Throwable $e) {
+                    // Auditing must never break an admin action.
+                }
+
+                // File-channel dual-write (retains the existing trail / fallback).
+                try {
                     Log::build([
                         'driver' => 'daily',
                         'path'   => storage_path('logs/admin-audit.log'),
@@ -42,9 +53,9 @@ class AdminAuditLog
                         'status'   => method_exists($response, 'getStatusCode') ? $response->getStatusCode() : null,
                         'at'       => now()->toDateTimeString(),
                     ]);
+                } catch (\Throwable $e) {
+                    // Auditing must never break an admin action.
                 }
-            } catch (\Throwable $e) {
-                // Auditing must never break an admin action.
             }
         }
 
