@@ -35,7 +35,7 @@ return new class extends Migration
             $table->string('permission_slug')->nullable()->index();
             $table->string('route_name')->nullable()->index();
             $table->string('method', 10);
-            $table->string('path');
+            $table->string('path')->nullable(); // null for non-HTTP (CLI/system) audit events
 
             $table->string('entity_type')->nullable();
             $table->unsignedBigInteger('entity_id')->nullable();
