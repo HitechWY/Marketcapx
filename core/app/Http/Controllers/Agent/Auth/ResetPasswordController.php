@@ -42,9 +42,15 @@ class ResetPasswordController extends Controller
             $notify[] = ['error', 'Invalid token'];
             return redirect()->route('agent.password.request')->withNotify($notify);
         }
-        return view(activeTemplate() . 'agent.auth.passwords.reset')->with(
-            ['token' => $token, 'email' => $email, 'pageTitle' => 'Reset Password']
-        );
+        // F4c: Inertia native-POST page (backend unchanged). Rollback (one line):
+        //   return view(activeTemplate() . 'agent.auth.passwords.reset')->with(['token' => $token, 'email' => $email, 'pageTitle' => 'Reset Password']);
+        return inertia('Auth/ResetPassword', [
+            'submitUrl'      => route('agent.password.update'),
+            'email'          => $email,
+            'token'          => $token,
+            'loginUrl'       => route('agent.login'),
+            'securePassword' => (bool) gs('secure_password'),
+        ]);
     }
 
     public function reset(Request $request)

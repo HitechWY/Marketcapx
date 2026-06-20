@@ -33,8 +33,12 @@ class ForgotPasswordController extends Controller
 
     public function showLinkRequestForm()
     {
-        $pageTitle = "Merchant Account Recovery";
-        return view('Template::merchant.auth.passwords.email', compact('pageTitle'));
+        // F4c: Inertia native-POST page (backend unchanged). Rollback (one line):
+        //   $pageTitle = "Merchant Account Recovery"; return view('Template::merchant.auth.passwords.email', compact('pageTitle'));
+        return inertia('Auth/ForgotPassword', [
+            'submitUrl' => route('merchant.password.email'),
+            'loginUrl'  => route('merchant.login'),
+        ]);
     }
 
     public function sendResetCodeEmail(Request $request)
@@ -84,7 +88,13 @@ class ForgotPasswordController extends Controller
             $notify[] = ['error','Oops! session expired'];
             return redirect()->route('merchant.password.request')->withNotify($notify);
         }
-        return view('Template::merchant.auth.passwords.code_verify',compact('pageTitle','email'));
+        // F4c: Inertia native-POST page (backend unchanged). Rollback (one line):
+        //   return view('Template::merchant.auth.passwords.code_verify',compact('pageTitle','email'));
+        return inertia('Auth/CodeVerify', [
+            'submitUrl'  => route('merchant.password.verify.code'),
+            'email'      => $email,
+            'requestUrl' => route('merchant.password.request'),
+        ]);
     }
 
     public function verifyCode(Request $request)

@@ -43,9 +43,15 @@ class ResetPasswordController extends Controller
             $notify[] = ['error', 'Invalid token'];
             return redirect()->route('merchant.password.request')->withNotify($notify);
         }
-        return view(activeTemplate() . 'merchant.auth.passwords.reset')->with(
-            ['token' => $token, 'email' => $email, 'pageTitle' => 'Reset Password']
-        );
+        // F4c: Inertia native-POST page (backend unchanged). Rollback (one line):
+        //   return view(activeTemplate() . 'merchant.auth.passwords.reset')->with(['token' => $token, 'email' => $email, 'pageTitle' => 'Reset Password']);
+        return inertia('Auth/ResetPassword', [
+            'submitUrl'      => route('merchant.password.update'),
+            'email'          => $email,
+            'token'          => $token,
+            'loginUrl'       => route('merchant.login'),
+            'securePassword' => (bool) gs('secure_password'),
+        ]);
     }
 
     public function reset(Request $request)

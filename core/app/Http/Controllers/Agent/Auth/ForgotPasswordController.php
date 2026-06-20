@@ -34,8 +34,12 @@ class ForgotPasswordController extends Controller
 
     public function showLinkRequestForm() 
     { 
-        $pageTitle = "Agent Account Recovery";
-        return view('Template::agent.auth.passwords.email', compact('pageTitle'));
+        // F4c: Inertia native-POST page (backend unchanged). Rollback (one line):
+        //   $pageTitle = "Agent Account Recovery"; return view('Template::agent.auth.passwords.email', compact('pageTitle'));
+        return inertia('Auth/ForgotPassword', [
+            'submitUrl' => route('agent.password.email'),
+            'loginUrl'  => route('agent.login'),
+        ]);
     }
 
     public function sendResetCodeEmail(Request $request)
@@ -85,7 +89,13 @@ class ForgotPasswordController extends Controller
             $notify[] = ['error','Oops! session expired'];
             return redirect()->route('agent.password.request')->withNotify($notify);
         }
-        return view(activeTemplate().'agent.auth.passwords.code_verify',compact('pageTitle','email'));
+        // F4c: Inertia native-POST page (backend unchanged). Rollback (one line):
+        //   return view(activeTemplate().'agent.auth.passwords.code_verify',compact('pageTitle','email'));
+        return inertia('Auth/CodeVerify', [
+            'submitUrl'  => route('agent.password.verify.code'),
+            'email'      => $email,
+            'requestUrl' => route('agent.password.request'),
+        ]);
     }
 
     public function verifyCode(Request $request)
