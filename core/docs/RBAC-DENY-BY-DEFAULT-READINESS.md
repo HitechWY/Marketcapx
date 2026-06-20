@@ -33,9 +33,12 @@ operational change — do not enable it until every item below is satisfied. Com
 5. **Route coverage reviewed**: confirm the high-risk routes carry the intended slugs
    (`RbacRouteCoverageTest`) and decide whether any currently-ungated read routes also need slugs.
 6. **Would-deny log reviewed**: with allow-by-default running in production for a representative
-   period, review `storage/logs/admin-audit.log` for `admin.permission` `"would_deny"` entries.
-   Each one is an action a real admin performs but their role lacks — grant the missing permission
-   (or confirm it should be denied) **before** flipping. Zero unexpected would-denies = ready.
+   period, review `would_deny` events. Since **F10** these are queryable in the DB audit table:
+   `SELECT admin_id, permission_slug, COUNT(*) FROM admin_audit_logs WHERE action =
+   'rbac.permission.would_deny' GROUP BY admin_id, permission_slug;` (the file
+   `storage/logs/admin-audit.log` remains as a fallback). Each one is an action a real admin performs
+   but their role lacks — grant the missing permission (or confirm it should be denied) **before**
+   flipping. Zero unexpected would-denies = ready. See `ADMIN-AUDIT-LOG-FOUNDATION.md`.
 7. **Non-super roles validated** on the test DB: a scoped role can perform its permitted actions and
    is correctly 403'd on others (extend the F9 enforce=true tests as needed).
 8. **Rollback plan**: enabling is a single config flip; rollback is setting `rbac.enforce=false`

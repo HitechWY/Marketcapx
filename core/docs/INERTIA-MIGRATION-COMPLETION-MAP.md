@@ -62,8 +62,14 @@ api-secret/gateway-credential/raw-KYC-path/cross-actor data in any prop.
 > **F9 (RBAC enforcement foundation) is complete — allow-by-default, no behavior change.** Schema
 > + models + `PermissionCatalog` + `rbac:install` seeder + `permission:<slug>` middleware applied to
 > high-risk admin routes, with `config('rbac.enforce')=false` (legacy admins keep full access). See
-> `RBAC-SCHEMA.md`, `RBAC-SEEDING.md`, and `RBAC-DENY-BY-DEFAULT-READINESS.md`. Still pending:
-> enabling deny-by-default (owner-gated), the DB audit-log foundation, then mutation-UI migration.
+> `RBAC-SCHEMA.md`, `RBAC-SEEDING.md`, and `RBAC-DENY-BY-DEFAULT-READINESS.md`.
+>
+> **F10 (admin audit-log foundation) is complete — allow-by-default, no behavior change.** A
+> structured `admin_audit_logs` table + `AdminAuditLogger`, wired into the permission middleware
+> (RBAC decisions) and the admin-request middleware (state-changing requests + route-inferred
+> entity), file logs retained. Semantic per-action events + before/after are design-only (F14+). See
+> `ADMIN-AUDIT-LOG-FOUNDATION.md`. Still pending: owner-gated real-DB apply, deny-by-default flip,
+> then per-endpoint audited mutation extraction → mutation-UI migration.
 
 1. **RBAC + admin mutation endpoints** — role/permission enforcement scaffolding **landed in F9**
    (allow-by-default). Next: complete the deny-by-default readiness checklist (owner-gated), build the
