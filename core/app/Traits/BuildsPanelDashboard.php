@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Constants\Status;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\Route;
@@ -142,6 +143,45 @@ trait BuildsPanelDashboard
                     ? route("$prefix.transfer", ['wallet' => $w->currency->currency_code])
                     : null,
             ])->all(),
+        ];
+    }
+
+    /**
+     * Shape a Deposit row for the Inertia UI (read-only display fields). Mirrors the
+     * user deposit-history mapping; manual-deposit file attachments resolve through the
+     * shared user.download.attachment route (the same one the Blade views used).
+     *
+     * @return array<string, mixed>
+     */
+    protected function mapDeposit($d): array
+    {
+        $isManual = $d->method_code >= 1000 && $d->method_code <= 5000;
+        $detail   = [];
+        if ($isManual) {
+            foreach (@$d->detail ?? [] as $info) {
+                $value = $info->value ?? null;
+                if (($info->type ?? null) == 'file' && $value) {
+                    $value = route('user.download.attachment', encrypt(getFilePath('verify') . '/' . $value));
+                }
+                $detail[] = ['name' => $info->name ?? '', 'type' => $info->type ?? 'text', 'value' => $value];
+            }
+        }
+
+        return [
+            'trx'           => $d->trx,
+            'gateway'       => __(@$d->gateway?->name),
+            'date'          => showDateTime($d->created_at),
+            'dateHuman'     => diffForHumans($d->created_at),
+            'amount'        => showAmount($d->amount, currencyFormat: false),
+            'charge'        => showAmount($d->charge, currencyFormat: false),
+            'total'         => showAmount($d->amount + $d->charge, currencyFormat: false),
+            'symbol'        => $d->currency->currency_symbol,
+            'code'          => $d->currency->currency_code,
+            'statusBadge'   => $d->statusBadge, // admin-trusted HTML
+            'status'        => (int) $d->status,
+            'isManual'      => $isManual,
+            'detail'        => $detail,
+            'adminFeedback' => $d->status == Status::PAYMENT_REJECT ? $d->admin_feedback : null,
         ];
     }
 }
