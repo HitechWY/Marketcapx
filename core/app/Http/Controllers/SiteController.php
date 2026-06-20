@@ -377,7 +377,30 @@ class SiteController extends Controller
         $pageTitle   = $blog->data_values->title;
         $seoContents = $blog->seo_content;
         $seoImage    = @$seoContents->image ? frontendImage('blog', $seoContents->image, getFileSize('seo'), true) : null;
-        return view('Template::blog_details', compact('blog', 'pageTitle', 'seoContents', 'seoImage', 'recentBlogs'));
+        $current     = url()->current();
+
+        // F1c-2: render via Inertia. Rollback (one line):
+        //   return view('Template::blog_details', compact('blog', 'pageTitle', 'seoContents', 'seoImage', 'recentBlogs'));
+        return inertia('Public/BlogDetails', [
+            'seo'         => $this->seoProps($pageTitle, $seoContents, $seoImage),
+            'blog'        => [
+                'title'       => __(@$blog->data_values->title),
+                'image'       => frontendImage('blog', @$blog->data_values->image, '640x480'),
+                'description' => @$blog->data_values->description, // admin-authored HTML
+                'date'        => showDateTime($blog->created_at, 'd M Y'),
+            ],
+            'recentBlogs' => $recentBlogs->map(fn ($b) => [
+                'title' => __(@$b->data_values->title),
+                'image' => frontendImage('blog', 'thumb_' . @$b->data_values->image),
+                'url'   => route('blog.details', $b->slug),
+                'date'  => showDateTime($b->created_at, 'd M Y'),
+            ])->values()->all(),
+            'share'       => [
+                'facebook' => 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode($current),
+                'linkedin' => 'http://www.linkedin.com/shareArticle?mini=true&url=' . urlencode($current),
+                'twitter'  => 'https://twitter.com/intent/tweet?url=' . urlencode($current),
+            ],
+        ]);
     }
 
     public function cookieAccept()
@@ -445,7 +468,29 @@ class SiteController extends Controller
         $pageTitle = 'Announces';
         $blogs     = Frontend::where('data_keys', 'blog.element')->latest()->paginate(getPaginate());
         $sections  = Page::where('tempname', activeTemplate())->where('slug', 'blogs')->first();
-        return view('Template::blogs', compact('blogs', 'pageTitle', 'sections'));
+        $content   = @getContent('blog.content', true)?->data_values;
+
+        // Shape each paginated item while preserving Laravel's pagination meta (links/…).
+        $blogs->through(fn ($blog) => [
+            'title'   => __(@$blog->data_values->title),
+            'excerpt' => strLimit(strip_tags((string) @$blog->data_values->description), 200),
+            'image'   => frontendImage('blog', @$blog->data_values->image),
+            'url'     => route('blog.details', $blog->slug),
+            'day'     => showDateTime($blog->created_at, 'd'),
+            'month'   => showDateTime($blog->created_at, 'M'),
+        ]);
+
+        // F1c-2: render via Inertia. Rollback (one line):
+        //   return view('Template::blogs', compact('blogs', 'pageTitle', 'sections'));
+        return inertia('Public/Blogs', [
+            'seo'     => ['title' => __($pageTitle), 'description' => null, 'keywords' => null, 'image' => null],
+            'content' => [
+                'title'      => $content ? __(@$content->title) : null,
+                'heading'    => $content ? __(@$content->heading) : null,
+                'subheading' => $content ? __(@$content->subheading) : null,
+            ],
+            'blogs'   => $blogs,
+        ]);
     }
 
     public function apiDocumentation()
