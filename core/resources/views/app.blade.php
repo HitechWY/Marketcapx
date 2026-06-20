@@ -23,6 +23,11 @@
 
     <title inertia>{{ config('app.name', 'MarketCap X') }}</title>
 
+    {{-- Material Symbols icon font (used by the Inertia/Vue Icon component). --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block">
+
     {{-- Ziggy: expose only the allow-listed 'public' route group (config/ziggy.php),
          not the full application route table. See core/docs/INERTIA-PUBLIC-POC.md. --}}
     @routes('public')
