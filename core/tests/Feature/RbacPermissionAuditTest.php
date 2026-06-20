@@ -8,18 +8,19 @@ use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
- * F8a coverage: documents the CURRENT (flat) admin authorization model.
+ * F8a coverage, evolving with F9: the admin authorization model.
  *
- * These assertions lock in today's behavior so the RBAC foundation (RBAC-DESIGN.md)
- * is a deliberate, reviewed change rather than an accidental drift. They prove:
- *  - high-risk admin mutation routes are gated ONLY by the `admin` auth guard
- *    (RedirectIfNotAdmin), with NO permission/role middleware;
- *  - no `permission`/`role` middleware alias is registered;
- *  - the Admin model carries no role/permission relation.
+ * F8a locked in the flat-admin baseline. F9 deliberately introduces RBAC structure,
+ * so these assertions are updated phase-by-phase (this is intended drift, not
+ * accidental):
+ *  - F9b: the Admin model now HAS a role() relation + hasPermission() — asserted by
+ *    test_admin_model_exposes_rbac_api below (replaces the old "no relation" guard).
+ *  - Still true in F9b (updated later): high-risk routes carry only the `admin`
+ *    guard (until F9e applies `permission:<slug>`), and no `permission` middleware
+ *    alias is registered (until F9d).
  *
  * Route-collection + reflection inspection only (no HTTP dispatch, no DB), so safe
- * to run without a seeded test database. When RBAC is implemented these tests are
- * expected to be updated alongside it.
+ * to run without a seeded test database.
  */
 class RbacPermissionAuditTest extends TestCase
 {
@@ -78,15 +79,17 @@ class RbacPermissionAuditTest extends TestCase
         $this->assertNotContains('role', $aliases, 'No RBAC role middleware should be registered yet.');
     }
 
-    public function test_admin_model_has_no_role_or_permission_relation(): void
+    public function test_admin_model_exposes_rbac_api(): void
     {
-        $this->assertFalse(
+        // F9b: Admin gained a role() belongsTo relation and a hasPermission() method.
+        // (Replaces the F8a "no relation" guard — intended, documented evolution.)
+        $this->assertTrue(
             method_exists(Admin::class, 'role'),
-            'Admin model has no role() relation today (flat admin).'
+            'Admin model should expose a role() relation (F9b).'
         );
-        $this->assertFalse(
-            method_exists(Admin::class, 'permissions'),
-            'Admin model has no permissions() relation today (flat admin).'
+        $this->assertTrue(
+            method_exists(Admin::class, 'hasPermission'),
+            'Admin model should expose hasPermission() (F9b).'
         );
     }
 }
