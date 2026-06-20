@@ -50,9 +50,9 @@ class AgentController extends Controller
 
     public function wallets()
     {
-        $pageTitle = "All Wallets";
-        $wallets   = Wallet::hasCurrency()->where('user_id', agent()->id)->where('user_type', 'AGENT')->with('currency')->orderBy('balance', 'DESC')->get();
-        return view('Template::agent.all_wallets', compact('pageTitle', 'wallets'));
+        // F3d: read-only Inertia (same shape as user wallets). Rollback (one line):
+        //   $pageTitle = "All Wallets"; $wallets = Wallet::hasCurrency()->where('user_id', agent()->id)->where('user_type', 'AGENT')->with('currency')->orderBy('balance', 'DESC')->get(); return view('Template::agent.all_wallets', compact('pageTitle', 'wallets'));
+        return inertia('Agent/Wallets', $this->buildWalletsProps(agent(), 'AGENT', 'agent'));
     }
 
     public function checkInsight(Request $req)
@@ -203,16 +203,20 @@ class AgentController extends Controller
 
     public function trxHistory(Request $request)
     {
-        $pageTitle = $request->search ? "Search Result of #$request->search" : "Transaction History";
-        $histories = agent()->trxLog($request);
-        return view('Template::agent.trx_history', compact('pageTitle', 'histories'));
+        // F3d: read-only Inertia (same shape as user transactions). Rollback (one line):
+        //   $pageTitle = $request->search ? "Search Result of #$request->search" : "Transaction History"; $histories = agent()->trxLog($request); return view('Template::agent.trx_history', compact('pageTitle', 'histories'));
+        return inertia('Agent/Transactions', $this->buildTransactionsProps(agent(), $request));
     }
 
     public function depositHistory()
     {
-        $pageTitle = 'Add Money History';
-        $logs      = agent()->deposits()->with('gateway')->orderBy('id', 'desc')->with('currency')->paginate(getPaginate());
-        return view('Template::agent.deposit_history', compact('pageTitle', 'logs'));
+        $deposits = agent()->deposits()->with('gateway')->orderBy('id', 'desc')->with('currency')->paginate(getPaginate());
+
+        // F3d: read-only Inertia (same shape as user deposit history). Rollback (one line):
+        //   $pageTitle = 'Add Money History'; $logs = agent()->deposits()->with('gateway')->orderBy('id', 'desc')->with('currency')->paginate(getPaginate()); return view('Template::agent.deposit_history', compact('pageTitle', 'logs'));
+        $deposits->through(fn ($d) => $this->mapDeposit($d));
+
+        return inertia('Agent/DepositHistory', ['deposits' => $deposits]);
     }
 
     public function kycForm()
@@ -280,11 +284,15 @@ class AgentController extends Controller
 
     public function commissionLog()
     {
-        $pageTitle = "Commission Logs";
-        $logs      = Transaction::where('user_type', 'AGENT')->where('user_id', agent()->id)->where('remark', 'commission')
-            ->with('currency')->orderBy('id', 'DESC')
+        $logs = Transaction::where('user_type', 'AGENT')->where('user_id', agent()->id)->where('remark', 'commission')
+            ->with('currency', 'receiverUser', 'receiverAgent', 'receiverMerchant')->orderBy('id', 'DESC')
             ->paginate(getPaginate());
-        return view('Template::agent.commission_log', compact('pageTitle', 'logs'));
+
+        // F3d: read-only Inertia (paginated commission transactions). Rollback (one line):
+        //   $pageTitle = "Commission Logs"; $logs = Transaction::where('user_type', 'AGENT')->where('user_id', agent()->id)->where('remark', 'commission')->with('currency')->orderBy('id', 'DESC')->paginate(getPaginate()); return view('Template::agent.commission_log', compact('pageTitle', 'logs'));
+        $logs->through(fn ($h) => $this->mapTransaction($h));
+
+        return inertia('Agent/CommissionLog', ['transactions' => $logs]);
     }
 
     public function userData()
