@@ -53,10 +53,15 @@ named action and the before/after status — not a duplicate. Tests assert speci
 
 ## Atomicity & safety
 
-The audit write shares the `DB::transaction` with the status save, so they commit together (per the
-F8d contract). `logMutation` is **fail-open**: a DB-write failure inside it is caught and file-logged,
-never breaking the close. A trait `abort(404)` for a missing ticket throws inside the transaction →
-rollback → **no** audit row and the same 404 as before.
+The `logMutation` call is made **inside** the same `DB::transaction` as the status save. So **when the
+audit write succeeds it participates in that transaction** and is committed together with the status
+change (the F8d intent). However, `logMutation` remains **fail-open** — a policy F14 does **not**
+change: if its own DB write fails, the exception is caught and the failure is recorded via the existing
+logger fallback (file channel), and the ticket close still succeeds with its behavior unchanged.
+F14 therefore does **not** guarantee that an audit row always persists alongside every close; it
+guarantees only that (a) audit logging never breaks the close, and (b) on the success path the audit
+row is written within the close's transaction. A trait `abort(404)` for a missing ticket throws inside
+the transaction → rollback → **no** audit row and the same 404 as before.
 
 ## RBAC
 
