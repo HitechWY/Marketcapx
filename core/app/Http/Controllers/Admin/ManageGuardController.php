@@ -213,8 +213,25 @@ class ManageGuardController extends Controller
     public function kycApprove($id)
     {
         $user     = $this->model::findOrFail($id);
+        $before   = ['kv' => (int) $user->kv]; // F16: capture before the decision
         $user->kv = Status::KYC_VERIFIED;
-        $user->save();
+
+        // F16: persist + write a status-only semantic audit row in one transaction (never the
+        // rejection reason or any KYC document/PII). notify() stays after + outside the transaction.
+        DB::transaction(function () use ($user, $before) {
+            $user->save();
+
+            app(AdminAuditLogger::class)->logMutation(
+                'account.kyc.approved',
+                auth('admin')->user(),
+                $this->guardType,
+                $user->id,
+                $before,
+                ['kv' => (int) $user->kv],
+                ['guard' => $this->guardType, 'decision' => 'approved'],
+                request()
+            );
+        });
 
         notify($user, 'KYC_APPROVE', []);
 
@@ -228,9 +245,26 @@ class ManageGuardController extends Controller
             'reason' => 'required',
         ]);
         $user                       = $this->model::findOrFail($id);
+        $before                     = ['kv' => (int) $user->kv]; // F16: capture before the decision
         $user->kv                   = Status::KYC_UNVERIFIED;
         $user->kyc_rejection_reason = $request->reason;
-        $user->save();
+
+        // F16: persist + write a status-only semantic audit row in one transaction. The audit never
+        // carries the rejection reason text or any KYC document/PII. notify() stays after + outside.
+        DB::transaction(function () use ($user, $before, $request) {
+            $user->save();
+
+            app(AdminAuditLogger::class)->logMutation(
+                'account.kyc.rejected',
+                auth('admin')->user(),
+                $this->guardType,
+                $user->id,
+                $before,
+                ['kv' => (int) $user->kv],
+                ['guard' => $this->guardType, 'decision' => 'rejected'],
+                $request
+            );
+        });
 
         notify($user, 'KYC_REJECT', [
             'reason' => $request->reason,
