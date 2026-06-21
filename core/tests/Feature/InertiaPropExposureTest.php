@@ -6,6 +6,7 @@ use App\Http\Middleware\AdminAuditLog;
 use App\Http\Middleware\CheckStatus;
 use App\Http\Middleware\Module;
 use App\Http\Middleware\RegistrationStep;
+use App\Models\NotificationLog;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\CreatesMoneyFixtures;
@@ -83,6 +84,38 @@ class InertiaPropExposureTest extends TestCase
                     ->missing('remember_token')
                     ->missing('balance')
                     ->missing('kyc_data')
+                    ->etc()));
+    }
+
+    public function test_admin_notification_log_excludes_raw_message_body(): void
+    {
+        // F13a: the per-user notification log must expose metadata only — never the raw
+        // `message` HTML body (XSS/freeze risk).
+        $user = $this->makeUser();
+        $log = new NotificationLog();
+        $log->user_id           = $user->id;
+        $log->user_type         = 'USER';
+        $log->sender            = 'email';
+        $log->sent_to           = 'someone@example.test';
+        $log->subject           = 'Test Subject';
+        $log->message           = '<script>alert(1)</script> SECRET-BODY-DO-NOT-LEAK';
+        $log->notification_type = 'general';
+        $log->save();
+
+        $this->actingAs($this->makeAdmin(), 'admin')
+            ->get("/admin/users/notification-log/{$user->id}")
+            ->assertOk()
+            ->assertDontSee('SECRET-BODY-DO-NOT-LEAK', false)
+            ->assertInertia(fn (Assert $p) => $p
+                ->where('user.userType', 'USER')
+                ->missing('user.password')
+                ->missing('user.balance')
+                ->missing('user.kyc_data')
+                ->has('logs.data.0', fn (Assert $row) => $row
+                    ->where('subject', 'Test Subject')
+                    ->has('channel')
+                    ->has('read')
+                    ->missing('message')
                     ->etc()));
     }
 }

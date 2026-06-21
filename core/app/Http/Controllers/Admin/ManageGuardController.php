@@ -535,8 +535,44 @@ class ManageGuardController extends Controller
         $user      = $this->model::findOrFail($id);
         $pageTitle = 'Notifications Sent to ' . $user->username;
         $column    = strtolower($this->type) . '_id';
-        $logs      = NotificationLog::where($column, $id)->where('user_type', $this->type)->with(strtolower($this->type))->orderBy('id', 'desc')->paginate(getPaginate());
-        $userType  = $this->type;
-        return view('admin.reports.notification_history', compact('pageTitle', 'logs', 'user', 'userType'));
+        $logs      = NotificationLog::where($column, $id)->where('user_type', $this->type)->orderBy('id', 'desc')->paginate(getPaginate());
+
+        $logs->appends(request()->all());
+        $logs->through(fn ($log) => $this->mapNotificationRow($log));
+
+        // F13a: read-only Inertia per-user notification log (metadata only — the raw
+        // `message` body is intentionally excluded). Rollback (one line):
+        //   return view('admin.reports.notification_history', compact('pageTitle', 'logs', 'user') + ['userType' => $this->type]);
+        return inertia('Admin/NotificationLog', [
+            'pageTitle' => $pageTitle,
+            'user'      => [
+                'id'       => $user->id,
+                'username' => $user->username,
+                'fullname' => $user->fullname,
+                'userType' => $this->type,
+            ],
+            'logs'      => $logs,
+        ]);
+    }
+
+    /**
+     * Secret-free notification-log row for the F13a read-only Inertia page. Explicitly
+     * EXCLUDES `message` (raw HTML body — XSS/freeze risk) and `image`/raw file paths.
+     *
+     * @return array<string, mixed>
+     */
+    protected function mapNotificationRow($log): array
+    {
+        return [
+            'id'        => $log->id,
+            'subject'   => (string) $log->subject,
+            'channel'   => (string) $log->sender,
+            'type'      => (string) $log->notification_type,
+            'sentTo'    => $log->sent_to,
+            'sentFrom'  => $log->sent_from,
+            'read'      => (bool) $log->user_read,
+            'date'      => showDateTime($log->created_at),
+            'dateHuman' => diffForHumans($log->created_at),
+        ];
     }
 }

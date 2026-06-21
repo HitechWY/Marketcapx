@@ -94,6 +94,19 @@ class InertiaMigrationSmokeTest extends TestCase
         }
     }
 
+    public function test_admin_notification_log_guarded_and_mounts(): void
+    {
+        // F13a: per-user notification log migrated to read-only Inertia (all three guards
+        // share ManageGuardController@notificationLog).
+        $user = $this->makeUser();
+        $uri  = "/admin/users/notification-log/{$user->id}";
+
+        $this->get($uri)->assertStatus(302); // guest redirected before controller runs
+
+        $this->actingAs($this->makeAdmin(), 'admin')->get($uri)
+            ->assertOk()->assertInertia(fn (Assert $p) => $p->component('Admin/NotificationLog'));
+    }
+
     public function test_auth_recovery_pages_render_inertia(): void
     {
         foreach (['user', 'merchant', 'agent'] as $guard) {
