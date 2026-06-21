@@ -65,10 +65,11 @@ class AdminAuditLogger
     }
 
     /**
-     * Reserved for the audited mutation-endpoint phases (F14+). Captures semantic
-     * action + before/after. NOT wired to any controller in F10.
+     * Semantic admin mutation event (F14+). Captures action + before/after. When a
+     * Request is passed (HTTP context) the row also carries method/path/ip/route_name/
+     * correlation_id; with null (default) it remains a CLI-style row (back-compatible).
      */
-    public function logMutation(string $action, ?object $admin, ?string $entityType, ?int $entityId, array $before = [], array $after = [], array $metadata = []): void
+    public function logMutation(string $action, ?object $admin, ?string $entityType, ?int $entityId, array $before = [], array $after = [], array $metadata = [], ?Request $request = null): void
     {
         $this->write([
             'action'        => $action,
@@ -78,7 +79,7 @@ class AdminAuditLogger
             'before_values' => $this->sanitizeMetadata($before),
             'after_values'  => $this->sanitizeMetadata($after),
             'metadata'      => $this->sanitizeMetadata($metadata),
-        ], $admin, null);
+        ], $admin, $request);
     }
 
     /** Redact sensitive keys, truncate long strings, cap total size. */

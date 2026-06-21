@@ -6,12 +6,16 @@ use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
+use App\Services\AdminAuditLogger;
 use App\Traits\BuildsAdminReadonly;
 use App\Traits\SupportTicketManager;
+use Illuminate\Support\Facades\DB;
 
 class SupportTicketController extends Controller
 {
-    use SupportTicketManager;
+    use SupportTicketManager {
+        closeTicket as protected runCloseTicket;
+    }
     use BuildsAdminReadonly;
 
     public function __construct()
@@ -90,6 +94,37 @@ class SupportTicketController extends Controller
         $pageTitle = 'Reply Ticket';
         $messages = SupportMessage::with('ticket','admin','attachments')->where('support_ticket_id', $ticket->id)->orderBy('id','desc')->get();
         return view('admin.support.reply', compact('ticket', 'messages', 'pageTitle'));
+    }
+
+    /**
+     * F14: admin ticket close + semantic audit. Runs the unchanged shared-trait close
+     * (status → TICKET_CLOSE, redirect/flash) and writes a `support.ticket.closed` audit
+     * row inside the same transaction (status-only; no message body/attachments/email).
+     * Behavior is identical to the trait close; only the audit row is added.
+     */
+    public function closeTicket($id)
+    {
+        $ticket = SupportTicket::where('id', $id)->first();
+        $before = ['status' => $ticket?->status];
+
+        return DB::transaction(function () use ($id, $ticket, $before) {
+            $response = $this->runCloseTicket($id); // unchanged trait behavior (mutation + redirect/flash)
+
+            if ($ticket) {
+                app(AdminAuditLogger::class)->logMutation(
+                    'support.ticket.closed',
+                    $this->user,
+                    'ticket',
+                    $ticket->id,
+                    $before,
+                    ['status' => Status::TICKET_CLOSE],
+                    ['ticket' => $ticket->ticket],
+                    request()
+                );
+            }
+
+            return $response;
+        });
     }
 
     public function ticketDelete($id)
