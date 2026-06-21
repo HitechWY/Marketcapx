@@ -128,3 +128,25 @@ export interface AdminLoginRow {
     browser: string;
     os: string;
 }
+
+// Curated account summary header for read-only per-account admin sub-pages (F13a).
+export interface AdminGuardSummary {
+    id: number;
+    username: string;
+    fullname: string | null;
+    userType: string;
+}
+
+// Per-user notification-log row (F13a). Metadata only — the raw `message` HTML body is
+// intentionally never serialized into props.
+export interface AdminNotificationLogRow {
+    id: number;
+    subject: string;
+    channel: string;
+    type: string;
+    sentTo: string | null;
+    sentFrom: string | null;
+    read: boolean;
+    date: string;
+    dateHuman: string;
+}
