@@ -13,6 +13,7 @@ use App\Rules\FileTypeValidate;
 use App\Lib\UserNotificationSender;
 use App\Http\Controllers\Controller;
 use App\Models\NotificationTemplate;
+use App\Services\AdminAuditLogger;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -418,7 +419,9 @@ class ManageGuardController extends Controller
 
     public function status(Request $request, $id)
     {
-        $user = $this->model::findOrFail($id);
+        $user   = $this->model::findOrFail($id);
+        $before = ['status' => (int) $user->status]; // F15: capture before the toggle
+
         if ($user->status == Status::USER_ACTIVE) {
             $request->validate([
                 'reason' => 'required|string|max:255',
@@ -431,7 +434,24 @@ class ManageGuardController extends Controller
             $user->ban_reason = null;
             $notify[]         = ['success', ucfirst($this->guardType) . ' unbanned successfully'];
         }
-        $user->save();
+
+        // F15: persist + write a status-only semantic audit row in one transaction. The audit
+        // never carries the ban_reason text or any PII (status flags + guard label only).
+        DB::transaction(function () use ($user, $before, $request) {
+            $user->save();
+
+            app(AdminAuditLogger::class)->logMutation(
+                'account.status.changed',
+                auth('admin')->user(),
+                $this->guardType,
+                $user->id,
+                $before,
+                ['status' => (int) $user->status],
+                ['guard' => $this->guardType, 'banned' => (int) $user->status === Status::USER_BAN],
+                $request
+            );
+        });
+
         return back()->withNotify($notify);
     }
 
