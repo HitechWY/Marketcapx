@@ -9,12 +9,14 @@ use App\Models\SupportTicket;
 use App\Services\AdminAuditLogger;
 use App\Traits\BuildsAdminReadonly;
 use App\Traits\SupportTicketManager;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SupportTicketController extends Controller
 {
     use SupportTicketManager {
         closeTicket as protected runCloseTicket;
+        replyTicket as protected runReplyTicket;
     }
     use BuildsAdminReadonly;
 
@@ -94,6 +96,54 @@ class SupportTicketController extends Controller
         $pageTitle = 'Reply Ticket';
         $messages = SupportMessage::with('ticket','admin','attachments')->where('support_ticket_id', $ticket->id)->orderBy('id','desc')->get();
         return view('admin.support.reply', compact('ticket', 'messages', 'pageTitle'));
+    }
+
+    /**
+     * F14b: admin ticket reply + semantic audit. Runs the unchanged shared-trait reply
+     * (validation, saves, attachments, email/SMS, redirect/flash) and then — only if a new
+     * admin message was actually created — writes a `support.ticket.replied` audit row with
+     * METADATA ONLY (status before/after, ticket ref, message id + length, attachment count;
+     * never the body, HTML, attachment names/paths, or file contents).
+     *
+     * Deliberately NOT wrapped in a transaction: reply has post-save email/attachment side
+     * effects that a transaction would change. The audit is written after the reply completes
+     * and is fail-open (logMutation), so it never alters or breaks the reply. A web validation
+     * failure throws before any write, bypassing the log; the new-message gate covers the rest.
+     */
+    public function replyTicket(Request $request, $id)
+    {
+        $ticket         = SupportTicket::where('id', $id)->first();
+        $beforeStatus   = $ticket?->status;
+        $beforeMaxMsgId = $ticket ? (int) SupportMessage::where('support_ticket_id', $ticket->id)->max('id') : 0;
+
+        $response = $this->runReplyTicket($request, $id); // unchanged trait behavior
+
+        if ($ticket) {
+            $newMessage = SupportMessage::where('support_ticket_id', $ticket->id)
+                ->where('id', '>', $beforeMaxMsgId)
+                ->where('admin_id', $this->user->id)
+                ->latest('id')->first();
+
+            if ($newMessage) {
+                app(AdminAuditLogger::class)->logMutation(
+                    'support.ticket.replied',
+                    $this->user,
+                    'ticket',
+                    $ticket->id,
+                    ['status' => $beforeStatus],
+                    ['status' => Status::TICKET_ANSWER],
+                    [
+                        'ticket'           => $ticket->ticket,
+                        'message_id'       => $newMessage->id,
+                        'message_length'   => mb_strlen((string) $newMessage->message),
+                        'attachment_count' => $newMessage->attachments()->count(),
+                    ],
+                    request()
+                );
+            }
+        }
+
+        return $response;
     }
 
     /**
