@@ -5,6 +5,7 @@ namespace App\Lib;
 use App\Constants\Status;
 use App\Models\NotificationTemplate;
 use App\Models\User;
+use App\Services\AdminAuditLogger;
 
 /**
  * Class UserNotificationSender
@@ -45,6 +46,34 @@ class UserNotificationSender
 
         $this->sendNotifications($users, $request, $imageUrl);
 
+        // F18c: semantic audit of the admin bulk notification send. Written only after a
+        // successful send, after all guards, with NO DB::transaction. logMutation is fail-open
+        // (never throws / never blocks the send). Metadata is a strict allow-list: NO subject,
+        // message, HTML, template body, NotificationLog content, recipient PII, recipient IDs,
+        // image path/filename, or dry_run flag. entity_id is null for bulk.
+        $slug         = strtolower($userType) . 's';
+        $isFinalBatch = (($request->start - 1) + $users->count()) >= $totalUserCount;
+        app(AdminAuditLogger::class)->logMutation(
+            'account.notification.sent',
+            auth('admin')->user(),
+            $slug,
+            null,
+            [],
+            [],
+            [
+                'guard'              => $slug,
+                'mode'               => 'bulk',
+                'channels_requested' => [$request->via],
+                'recipient_count'    => $users->count(),
+                'recipient_scope'    => $request->being_sent_to,
+                'image_attached'     => (bool) $imageUrl,
+                'batch_start'        => (int) $request->start,
+                'batch_size'         => (int) $request->batch,
+                'is_final_batch'     => $isFinalBatch,
+            ],
+            $request
+        );
+
         return $this->manageSessionForNotification($totalUserCount, $request, $userType);
     }
 
@@ -66,6 +95,30 @@ class UserNotificationSender
         $user     = $model::findOrFail($userId);
 
         $this->sendNotifications($user, $request, $imageUrl, true);
+
+        // F18c: semantic audit of the admin single notification send. Written only after a
+        // successful send, after the template guard + findOrFail, with NO DB::transaction.
+        // logMutation is fail-open (never throws / never blocks the send). Metadata is a strict
+        // allow-list: NO subject, message, HTML, template body, NotificationLog content,
+        // recipient PII, image path/filename, or dry_run flag.
+        $slug = strtolower($userType) . 's';
+        app(AdminAuditLogger::class)->logMutation(
+            'account.notification.sent',
+            auth('admin')->user(),
+            $slug,
+            $user->id,
+            [],
+            [],
+            [
+                'guard'              => $slug,
+                'mode'               => 'single',
+                'channels_requested' => [$request->via],
+                'recipient_count'    => 1,
+                'recipient_scope'    => 'single',
+                'image_attached'     => (bool) $imageUrl,
+            ],
+            $request
+        );
 
         return $this->redirectWithNotify("success", "Notification sent successfully");
     }
