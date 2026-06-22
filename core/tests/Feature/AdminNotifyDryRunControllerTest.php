@@ -17,14 +17,18 @@ use Tests\Concerns\CreatesMoneyFixtures;
 use Tests\TestCase;
 
 /**
- * F18b: tests-only coverage for the admin "send notification" controller methods
+ * F18b/F18c: coverage for the admin "send notification" controller methods
  * (`ManageGuardController@sendNotificationSingle|sendNotificationAll|countBySegment`, shared by
  * users/agents/merchants). Drives the REAL admin routes with the F18a `notify.dry_run=true` seam so the
  * success path runs end-to-end (validation → channel guard → UserNotificationSender → notify() →
- * transport) but the outbound transport is skipped — no real email/SMS/push, no network. Locks current
- * behaviour only; adds NO semantic audit (`account.notification.sent` is F18c). DB-backed on
+ * transport) but the outbound transport is skipped — no real email/SMS/push, no network. DB-backed on
  * marketcapx_test; DatabaseTransactions rolls back. gs() caches GeneralSetting (non-transactional), so the
  * cache is forgotten in setUp/tearDown and after each settings mutation.
+ *
+ * F18c adds the semantic `account.notification.sent` audit on each successful send (in
+ * UserNotificationSender, not the controller). These tests assert the row exists on success with a strict
+ * metadata allow-list and NO content/PII (subject, message, recipient email/mobile/username, image
+ * name/path are never persisted); guard/validation/segment-count paths still write no audit row.
  */
 class AdminNotifyDryRunControllerTest extends TestCase
 {
@@ -93,22 +97,60 @@ class AdminNotifyDryRunControllerTest extends TestCase
         $this->assertSame(0, AuditRow::where('action', 'account.notification.sent')->count());
     }
 
-    public function test_single_user_notification_success_writes_one_log_no_audit(): void
+    /** Fetch the single `account.notification.sent` row for the given entity (asserts exactly one). */
+    private function sentRowFor(string $entityType, ?int $entityId): AuditRow
+    {
+        $query = AuditRow::where('action', 'account.notification.sent')->where('entity_type', $entityType);
+        $entityId === null ? $query->whereNull('entity_id') : $query->where('entity_id', $entityId);
+
+        $rows = $query->get();
+        $this->assertCount(1, $rows, "exactly one account.notification.sent row expected for {$entityType}");
+
+        return $rows->first();
+    }
+
+    /** before/after are empty + NO content/PII anywhere in the persisted row (columns + metadata). */
+    private function assertCleanAuditRow(AuditRow $row, array $sentinels): void
+    {
+        $this->assertSame([], $row->before_values, 'before_values must be empty');
+        $this->assertSame([], $row->after_values, 'after_values must be empty');
+
+        $haystack = strtolower((string) json_encode($row->getAttributes()));
+        foreach ($sentinels as $needle) {
+            if ($needle === null || $needle === '') {
+                continue;
+            }
+            $this->assertStringNotContainsString(strtolower((string) $needle), $haystack,
+                "audit row must not contain content/PII sentinel: {$needle}");
+        }
+    }
+
+    public function test_single_user_notification_success_writes_one_log_and_audit(): void
     {
         $user = $this->makeUser();
         $this->setNotificationSettings(en: true, sn: false, pn: false);
 
         $this->actingAs($this->makeAdmin(), 'admin')
             ->post(route('admin.users.notification.single', $user->id), [
-                'message' => 'Hello there',
+                'message' => 'MESSAGE_SENTINEL_BODY',
                 'via'     => 'email',
-                'subject' => 'Hi',
+                'subject' => 'SUBJECT_SENTINEL',
             ])
             ->assertRedirect();
 
         $this->assertSame(1, NotificationLog::where('user_id', $user->id)
             ->where('notification_type', 'email')->count());
-        $this->noAudit();
+
+        $row = $this->sentRowFor('users', $user->id);
+        $this->assertEquals([
+            'guard'              => 'users',
+            'mode'               => 'single',
+            'channels_requested' => ['email'],
+            'recipient_count'    => 1,
+            'recipient_scope'    => 'single',
+            'image_attached'     => false,
+        ], $row->metadata);
+        $this->assertCleanAuditRow($row, ['SUBJECT_SENTINEL', 'MESSAGE_SENTINEL_BODY', $user->email, $user->username]);
     }
 
     public function test_single_agent_and_merchant_notification_success(): void
@@ -118,17 +160,28 @@ class AdminNotifyDryRunControllerTest extends TestCase
 
         $agent = $this->makeAgent();
         $this->actingAs($admin, 'admin')
-            ->post(route('admin.agents.notification.single', $agent->id), ['message' => 'M', 'via' => 'email', 'subject' => 'S'])
+            ->post(route('admin.agents.notification.single', $agent->id), ['message' => 'AGENT_MSG_SENTINEL', 'via' => 'email', 'subject' => 'AGENT_SUBJ_SENTINEL'])
             ->assertRedirect();
         $this->assertSame(1, NotificationLog::where('agent_id', $agent->id)->where('notification_type', 'email')->count());
 
         $merchant = $this->makeMerchant();
         $this->actingAs($admin, 'admin')
-            ->post(route('admin.merchants.notification.single', $merchant->id), ['message' => 'M', 'via' => 'email', 'subject' => 'S'])
+            ->post(route('admin.merchants.notification.single', $merchant->id), ['message' => 'MERCHANT_MSG_SENTINEL', 'via' => 'email', 'subject' => 'MERCHANT_SUBJ_SENTINEL'])
             ->assertRedirect();
         $this->assertSame(1, NotificationLog::where('merchant_id', $merchant->id)->where('notification_type', 'email')->count());
 
-        $this->noAudit();
+        // exactly one row per guard, with the correct plural entity_type + no content/PII.
+        $this->assertSame(2, AuditRow::where('action', 'account.notification.sent')->count());
+
+        $agentRow = $this->sentRowFor('agents', $agent->id);
+        $this->assertSame('single', $agentRow->metadata['mode']);
+        $this->assertSame('agents', $agentRow->metadata['guard']);
+        $this->assertCleanAuditRow($agentRow, ['AGENT_SUBJ_SENTINEL', 'AGENT_MSG_SENTINEL', $agent->email, $agent->username]);
+
+        $merchantRow = $this->sentRowFor('merchants', $merchant->id);
+        $this->assertSame('single', $merchantRow->metadata['mode']);
+        $this->assertSame('merchants', $merchantRow->metadata['guard']);
+        $this->assertCleanAuditRow($merchantRow, ['MERCHANT_SUBJ_SENTINEL', 'MERCHANT_MSG_SENTINEL', $merchant->email, $merchant->username]);
     }
 
     public function test_validation_failures_write_no_log(): void
@@ -163,7 +216,7 @@ class AdminNotifyDryRunControllerTest extends TestCase
         $this->noAudit();
     }
 
-    public function test_bulk_selected_users_writes_one_log_per_recipient(): void
+    public function test_bulk_selected_users_writes_one_log_per_recipient_and_one_audit(): void
     {
         $u1 = $this->makeActiveUser();
         $u2 = $this->makeActiveUser();
@@ -172,8 +225,8 @@ class AdminNotifyDryRunControllerTest extends TestCase
         $this->actingAs($this->makeAdmin(), 'admin')
             ->post(route('admin.users.notification.all.send'), [
                 'via'           => 'email',
-                'message'       => 'Bulk hello',
-                'subject'       => 'Bulk',
+                'message'       => 'BULK_MESSAGE_SENTINEL',
+                'subject'       => 'BULK_SUBJECT_SENTINEL',
                 'start'         => 1,
                 'batch'         => 10,
                 'cooling_time'  => 1,
@@ -185,7 +238,27 @@ class AdminNotifyDryRunControllerTest extends TestCase
         $this->assertSame(2, NotificationLog::whereIn('user_id', [$u1->id, $u2->id])
             ->where('notification_type', 'email')->count());
         $this->assertFalse(session()->has('SEND_NOTIFICATION')); // batch (10) >= total (2) → completed, session cleared
-        $this->noAudit();
+
+        // exactly one bulk audit row for the batch; entity_id null; recipient_count is the batch count
+        // (not the IDs); full metadata equality proves NO recipient IDs leak into metadata.
+        $this->assertSame(1, AuditRow::where('action', 'account.notification.sent')->count());
+        $row = $this->sentRowFor('users', null);
+        $this->assertNull($row->entity_id);
+        $this->assertEquals([
+            'guard'              => 'users',
+            'mode'               => 'bulk',
+            'channels_requested' => ['email'],
+            'recipient_count'    => 2,
+            'recipient_scope'    => 'selectedUsers',
+            'image_attached'     => false,
+            'batch_start'        => 1,
+            'batch_size'         => 10,
+            'is_final_batch'     => true,
+        ], $row->metadata);
+        $this->assertCleanAuditRow($row, [
+            'BULK_SUBJECT_SENTINEL', 'BULK_MESSAGE_SENTINEL',
+            $u1->email, $u1->username, $u2->email, $u2->username,
+        ]);
     }
 
     public function test_segment_count_is_read_only_numeric(): void
