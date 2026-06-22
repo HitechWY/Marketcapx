@@ -304,6 +304,9 @@ class ManageGuardController extends Controller
             return back()->withNotify($notify);
         }
 
+        // F17: snapshot verification flags before mutation for a status-only semantic audit row.
+        $before = ['ev' => (int) $user->ev, 'sv' => (int) $user->sv, 'ts' => (int) $user->ts, 'kv' => (int) $user->kv];
+
         $user->country_code = $countryCode;
         $user->firstname    = $request->firstname;
         $user->lastname     = $request->lastname;
@@ -331,12 +334,14 @@ class ManageGuardController extends Controller
         $user->sv = $request->sv ? Status::VERIFIED : Status::UNVERIFIED;
         $user->ts = $request->ts ? Status::ENABLE : Status::DISABLE;
 
+        $filesRemoved = 0; // F17: count only — never a path or filename
         if (!$request->kv) {
             $user->kv = 0;
             if ($user->kyc_data) {
                 foreach ($user->kyc_data ?? [] as $kycData) {
                     if ($kycData->type == 'file') {
                         fileManager()->removeFile(getFilePath('verify') . '/' . $kycData->value);
+                        $filesRemoved++;
                     }
                 }
             }
@@ -345,7 +350,31 @@ class ManageGuardController extends Controller
             $user->kv = 1;
         }
 
-        $user->save();
+        // F17: capture changed column NAMES only (never values) before persisting.
+        $changedFields = array_keys($user->getDirty());
+
+        // F17: persist + write a category-only semantic audit row in one transaction. The audit
+        // carries only changed field names, the four verification-flag ints, and KYC-reset signals —
+        // never PII, KYC document data, or file paths/filenames. notify() stays after + outside.
+        DB::transaction(function () use ($user, $before, $changedFields, $request, $filesRemoved) {
+            $user->save();
+
+            app(AdminAuditLogger::class)->logMutation(
+                'account.profile.updated',
+                auth('admin')->user(),
+                $this->guardType,
+                $user->id,
+                $before,
+                ['ev' => (int) $user->ev, 'sv' => (int) $user->sv, 'ts' => (int) $user->ts, 'kv' => (int) $user->kv],
+                [
+                    'guard'          => $this->guardType,
+                    'changed_fields' => $changedFields,
+                    'kv_reset'       => !$request->kv, // SAFE key — avoids the 'kyc' redactor
+                    'files_removed'  => $filesRemoved,
+                ],
+                request()
+            );
+        });
 
         $notify[] = ['success', ucfirst($this->guardType) . ' details updated successfully'];
         return back()->withNotify($notify);
