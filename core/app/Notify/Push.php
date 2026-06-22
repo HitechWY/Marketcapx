@@ -64,6 +64,11 @@ class Push extends NotifyProcess implements Notifiable
         //get message from parent
         $message = $this->getMessage();
         if ($message) {
+            //F18a: dry-run skips only the outbound transport; log still written.
+            if ($this->isDryRun()) {
+                $this->createLog('push');
+                return;
+            }
             try {
                 $credentialsFilePath = getFilePath('pushConfig') . '/push_config.json';
                 $serviceAccount = json_decode(file_get_contents($credentialsFilePath), true);

@@ -45,6 +45,11 @@ class Email extends NotifyProcess implements Notifiable{
 		//get message from parent
 		$message = $this->getMessage();
 		if ($message) {
+			//F18a: dry-run skips only the outbound transport; log still written.
+			if ($this->isDryRun()) {
+				$this->createLog('email');
+				return;
+			}
 			//Send mail
 			$methodName = gs('mail_config')->name;
 			$method = $this->mailMethods($methodName);

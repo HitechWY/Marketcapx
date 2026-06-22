@@ -148,6 +148,17 @@ class NotifyProcess{
     protected $sentFrom = null;
 
     /**
+    * F18a: test-only dry-run seam. When true, transports build the message and
+    * write the NotificationLog row but SKIP the actual outbound send. Defaults
+    * to false, so production behaviour is unchanged.
+    *
+    * @return bool
+    */
+	protected function isDryRun(){
+		return (bool) config('notify.dry_run', false);
+	}
+
+    /**
     * Get the final message after replacing the short code.
     *
     * Also custom message will be return from here if notification template doesn't exist.

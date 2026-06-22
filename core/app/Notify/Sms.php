@@ -42,6 +42,11 @@ class Sms extends NotifyProcess implements Notifiable{
         //get message from parent
 		$message = $this->getMessage();
 		if ($message) {
+			//F18a: dry-run skips only the outbound transport; log still written.
+			if ($this->isDryRun()) {
+				$this->createLog('sms');
+				return;
+			}
 			try {
 				$gateway = gs('sms_config')->name;
                 if($this->mobile){
