@@ -24,9 +24,11 @@ linked to its source doc rather than restated. Companions: `ADMIN-AUDIT-LOG-ACTI
 
 Per `ADMIN-AUDIT-LOG-ACTION-COVERAGE.md` (authoritative): `support.ticket.closed` (F14),
 `support.ticket.replied` (F14b), `account.status.changed` (F15), `account.kyc.approved` /
-`account.kyc.rejected` (F16), `account.profile.updated` (F17). All are status/structure-only via
-`AdminAuditLogger::logMutation()` — never PII, reason/reply/body text, KYC docs/paths/`kyc_data`, balances,
-tokens, or secrets. Each has a dedicated feature test. The logger is **fail-open** (a failed audit write
+`account.kyc.rejected` (F16), `account.profile.updated` (F17), `account.notification.sent` (F18, in
+`UserNotificationSender`; channel + recipient_count + scope-name + image-attached boolean only). All are
+status/structure-only via `AdminAuditLogger::logMutation()` — never PII, reason/reply/body text or
+notification content, recipient identities, KYC docs/paths/`kyc_data`, balances, tokens, or secrets. Each
+has a dedicated feature test. The logger is **fail-open** (a failed audit write
 never breaks the admin action; durable persistence is best-effort). The F10 middleware layer
 (`admin.request.mutation` / `rbac.permission.*`) remains the always-on baseline.
 

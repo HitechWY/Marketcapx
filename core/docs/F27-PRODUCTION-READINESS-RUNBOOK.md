@@ -100,6 +100,14 @@ Companions: `F11-REAL-DB-SCHEMA-APPLY-RUNBOOK.md` (schema apply), `RBAC-DENY-BY-
       (column **names** only), `kv_reset`, `files_removed` — **no** PII values, KYC filenames/paths, or
       `kyc_data` (`F17-ACCOUNT-PROFILE-UPDATE-AUDIT.md`). The audit logger is **fail-open**, so durable
       audit persistence is best-effort, not guaranteed — do not gate the release on every row persisting.
+- [ ] **F18 admin-notify audit (gate).** An admin "send notification" (single/all, under the
+      `notify.dry_run=true` test seam) writes `account.notification.sent` with metadata limited to `guard`,
+      `mode`, `channels_requested`, `recipient_count`, `recipient_scope`, `image_attached` (+bulk
+      `batch_start`/`batch_size`/`is_final_batch`) and **empty** before/after — **no** subject/message/HTML,
+      recipient PII, image filename/path, recipient IDs, or `dry_run`
+      (`F18-ADMIN-NOTIFY-AUDIT.md`). The outbound send is **irreversible** and the logger is **fail-open**
+      (non-transactional) — durable persistence is best-effort; do not gate the release on every row
+      persisting, and never run the notify path with `notify.dry_run=false` in verification.
 - [ ] **RBAC allow-by-default confirmed** (`config('rbac.enforce') === false`). The middleware records
       `rbac.permission.would_deny` evidence for ungranted-but-allowed actions.
 - [ ] **Would-deny review run** before ever considering enforcement: `php artisan rbac:would-deny-report`
