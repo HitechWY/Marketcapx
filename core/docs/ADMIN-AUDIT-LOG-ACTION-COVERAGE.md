@@ -5,7 +5,7 @@ the **semantic mutation events shipped in F14–F17** (controller-level, before/
 what is **still deferred** to later mutation-endpoint phases. Companions: `ADMIN-AUDIT-LOG-SCHEMA.md`,
 `ADMIN-AUDIT-LOG-READINESS.md`, `ADMIN-SAFE-MUTATION-ENDPOINT-DESIGN.md`, `F14-SUPPORT-TICKET-AUDIT.md`,
 `F14b-SUPPORT-TICKET-REPLY-AUDIT.md`, `F15-ACCOUNT-STATUS-AUDIT.md`, `F16-KYC-DECISION-AUDIT.md`,
-`F17-ACCOUNT-PROFILE-UPDATE-AUDIT.md`.
+`F17-ACCOUNT-PROFILE-UPDATE-AUDIT.md`, `F18-ADMIN-NOTIFY-AUDIT.md`.
 
 > **F24 (docs-only) update:** F14, F14b, F15, and F16 are now **shipped** — the semantic events below
 > moved out of the "deferred / design-only" list into "Implemented". The shipped event **names** differ
@@ -15,6 +15,13 @@ what is **still deferred** to later mutation-endpoint phases. Companions: `ADMIN
 > **F24b (docs-only) update:** F17 `account.profile.updated` is now **shipped** (merge `6f9b31c`) and has
 > moved from the deferred list into "Implemented" below. Full suite after F17: **208 tests / 1949
 > assertions / 1 skipped**; route count **798**; `rbac.enforce` still **false**. No code changed in F24b.
+>
+> **F18d (docs-only) update:** F18 `account.notification.sent` is now **shipped** (merge `3b741c9`) and has
+> moved from the deferred list (was the `notify.sent (F18)` placeholder) into "Implemented" below. The
+> shipped event is implemented in `UserNotificationSender` (not the controller — `ManageGuardController`
+> is unchanged). Full suite after F18c: **219 tests / 2015 assertions / 1 skipped**; route count **798**;
+> `rbac.enforce` still **false**; `notify.dry_run` default **false**. See `F18-ADMIN-NOTIFY-AUDIT.md`. No
+> code changed in F18d.
 
 ## Implemented now (F10c/F10d) — middleware-level
 
@@ -36,7 +43,7 @@ them — but they are **gated**, so `PermissionMiddleware` records an `rbac.perm
 each (permission_slug `admin.*.login` / `admin.*.kyc.review`). This closes the F8c "GET impersonation
 unlogged" gap without changing behavior.
 
-## Implemented (F14–F17) — semantic mutation events (controller-level)
+## Implemented (F14–F18) — semantic mutation events (controller-level)
 
 Each event below is written by a controller hook via `AdminAuditLogger::logMutation()` with the precise
 entity, a sanitized before/after snapshot, and `result='succeeded'`. These are **complementary** to the
@@ -52,12 +59,14 @@ text, KYC reason text, KYC document names/paths, balances, tokens, or PII. `rbac
 | F16 | `account.kyc.approved` | `ManageGuardController@kycApprove` | `users`/`agents`/`merchants` | `kv` | reason text, KYC docs/paths, `kyc_data`, PII |
 | F16 | `account.kyc.rejected` | `ManageGuardController@kycReject` | `users`/`agents`/`merchants` | `kv` | reason text, KYC docs/paths, `kyc_data`, PII |
 | F17 | `account.profile.updated` | `ManageGuardController@update` | `users`/`agents`/`merchants` | `ev`/`sv`/`ts`/`kv` ints; metadata `changed_fields` (names), `kv_reset`, `files_removed` | PII values, old/new profile values, KYC filenames/paths, `kyc_data`, balances |
+| F18 | `account.notification.sent` | `UserNotificationSender@notificationToSingle`/`notificationToAll` (via `ManageGuardController@sendNotificationSingle`/`sendNotificationAll`, controller unchanged) | `users`/`agents`/`merchants` (bulk `entity_id`=null) | before/after empty; metadata `guard`, `mode`, `channels_requested`, `recipient_count`, `recipient_scope`, `image_attached` (+bulk `batch_start`, `batch_size`, `is_final_batch`) | subject, body/message, HTML, template body, recipient PII, image filename/path, recipient IDs, provider responses, `dry_run` |
 
 Negative paths write **no** semantic row: validation failure (e.g. KYC reject / ban missing `reason`,
 profile update missing `firstname`/`email`/`country`) throws before the write; the profile-update
 mobile-duplicate guard early-returns before the write; a missing record 404s before any write. Each event
 has a dedicated feature test (`SupportTicketCloseAuditTest`, `SupportTicketReplyAuditTest`,
-`AccountStatusAuditTest`, `KycDecisionAuditTest`, `AccountProfileUpdateAuditTest`). `logMutation` is
+`AccountStatusAuditTest`, `KycDecisionAuditTest`, `AccountProfileUpdateAuditTest`,
+`AdminNotifyDryRunControllerTest`). `logMutation` is
 **fail-open**: a failed audit write is caught and file-logged, and the business mutation still commits —
 auditing never breaks an admin action (so durable audit persistence is best-effort, not guaranteed).
 
@@ -93,9 +102,11 @@ docs/audit track); see `F19-MONEY-FLOW-ADMIN-ATTRIBUTION-MAP.md` for the attribu
 | `gateway.updated` | gateway update endpoints | secrets/PII in before/after — needs field allow-list |
 | `settings.updated` | settings endpoints | needs field allow-list |
 | `notification.template.updated` | notification template endpoints | body/template content excluded |
-| `notify.sent` (F18) | admin notify single/all | channel + recipient_count + scope-name only |
 
-*(F17 `account.profile.updated` moved to "Implemented (F14–F17)" above — shipped in merge `6f9b31c`.)*
+*(F17 `account.profile.updated` moved to "Implemented (F14–F18)" above — shipped in merge `6f9b31c`.
+F18 `account.notification.sent` — the former `notify.sent (F18)` placeholder — likewise shipped in merge
+`3b741c9` and moved to "Implemented"; the shipped event lives in `UserNotificationSender`, channel +
+recipient_count + scope-name + image-attached boolean only, no recipient IDs / content.)*
 
 When implemented (per phase), each will call `AdminAuditLogger::logMutation()` with the precise entity,
 semantic action, and a sanitized, field-allow-listed before/after snapshot — never secrets/PII.
