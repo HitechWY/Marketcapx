@@ -93,7 +93,13 @@ Companions: `F11-REAL-DB-SCHEMA-APPLY-RUNBOOK.md` (schema apply), `RBAC-DENY-BY-
 - [ ] **Admin audit log writes.** Perform one benign admin status action on staging-equivalent and
       confirm both the generic `admin.request.mutation` row and the semantic row land
       (`ADMIN-AUDIT-LOG-ACTION-COVERAGE.md`: `account.status.changed`, `account.kyc.approved/rejected`,
-      `support.ticket.closed/replied`). Confirm **no** reason text / KYC docs / PII in the row.
+      `account.profile.updated`, `support.ticket.closed/replied`). Confirm **no** reason text / KYC docs /
+      PII in the row.
+- [ ] **F17 profile-update audit (gate).** A benign account-profile edit writes `account.profile.updated`
+      with before/after limited to `ev/sv/ts/kv` and metadata limited to `guard`, `changed_fields`
+      (column **names** only), `kv_reset`, `files_removed` — **no** PII values, KYC filenames/paths, or
+      `kyc_data` (`F17-ACCOUNT-PROFILE-UPDATE-AUDIT.md`). The audit logger is **fail-open**, so durable
+      audit persistence is best-effort, not guaranteed — do not gate the release on every row persisting.
 - [ ] **RBAC allow-by-default confirmed** (`config('rbac.enforce') === false`). The middleware records
       `rbac.permission.would_deny` evidence for ungranted-but-allowed actions.
 - [ ] **Would-deny review run** before ever considering enforcement: `php artisan rbac:would-deny-report`
@@ -112,6 +118,12 @@ Companions: `F11-REAL-DB-SCHEMA-APPLY-RUNBOOK.md` (schema apply), `RBAC-DENY-BY-
 5. [ ] **Rebuild caches** (`config:clear`/`route:clear` then re-cache) for the reverted commit.
 6. [ ] **Re-run smoke tests (§8).** Confirm green before lifting maintenance mode.
 7. [ ] **Record incident:** what failed, the gate that caught it, restore point used, time-to-recover.
+
+> **F17 KYC-reset caveat (irreversible side effect).** The admin account-update KYC-reset branch deletes
+> KYC files from disk (`assets/verify/…`, direct `@unlink`) **before** the DB write. Code rollback and DB
+> restore **cannot** recover those files — they are gone unless an independent file/object-storage backup
+> exists. The F17 `DB::transaction` only co-commits the DB row + its audit row; it does **not** make file
+> deletion reversible. Treat KYC-file backup as a precondition if this action is exercised near a release.
 
 ## 8. Smoke tests (post-deploy, before lifting maintenance)
 
